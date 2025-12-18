@@ -130,27 +130,54 @@ uv run pytest --cov=src
 ### [Unreleased]
 
 #### Telegram Integration (Phase 1)
+
+**Backend Configuration:**
 - Added Telegram settings to `Backend/src/config/settings.py`
   - `telegram_bot_token`, `telegram_allowed_user_ids`, `telegram_polling_timeout`
   - `telegram_enabled`, `telegram_mcp_host`, `telegram_mcp_port`
   - Computed properties: `telegram_allowed_user_ids_list`, `telegram_mcp_url`, `telegram_is_configured`
+
+**Telegram Services:**
 - Created `Backend/src/services/telegram/` package:
-  - `models.py` - Pydantic models for Telegram API data structures
-  - `poller.py` - TelegramPoller class with long-polling implementation
-  - `message_handler.py` - TelegramMessageHandler for routing to orchestrator
+  - `models.py` - Pydantic models for Telegram API data structures (User, Chat, Message, Update)
+  - `poller.py` - TelegramPoller with long-polling, user whitelist, exponential backoff
+  - `message_handler.py` - TelegramMessageHandler with bot commands, session management, typing indicators
+- Created `Backend/src/services/telegram_session_service.py`:
+  - Maps Telegram chat IDs to internal database chat sessions
+  - Supports `/new` command for fresh conversation context
+  - Supports `/clear` command to clear messages in current chat
+  - Supports `/status` command to show session info
+
+**Bot Commands:**
+- `/start` - Welcome message and initial setup
+- `/help` - Display available commands
+- `/new` - Start fresh conversation (new internal chat)
+- `/clear` - Clear messages but keep same session
+- `/status` - Show session info and message count
+
+**Database:**
+- Added `Backend/database/migrations/002_create_telegram_sessions.sql`
+- Created `TelegramSession` model mapping Telegram chat IDs to internal chats
+
+**API Integration:**
 - Updated `Backend/src/api/main.py` lifespan to:
   - Initialize OrchestratorAgent on startup
   - Initialize TelegramPoller and TelegramMessageHandler
   - Start poller as background task
   - Graceful shutdown of poller and handler
+
+**Telegram MCP Server:**
 - Created `docker/telegram-mcp/` Telegram MCP Server:
-  - FastMCP server with `send_message`, `get_chat_info`, `send_typing_action` tools
+  - FastMCP server with tools: `send_message`, `get_chat_info`, `send_typing_action`
   - FastAPI HTTP endpoints for direct tool access
   - Dockerfile with multi-stage build
+  - Health check endpoint at `/health`
+
+**Docker Updates:**
 - Updated `docker-compose.yml`:
-  - Added `telegram-mcp` service
+  - Added `telegram-mcp` service on internal network
   - Added Telegram environment variables to backend service
-  - Backend now depends on telegram-mcp service health
+  - Backend depends on telegram-mcp service health
 - Updated `.env.example` with comprehensive Telegram configuration
 
 #### Previous

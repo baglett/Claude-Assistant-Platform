@@ -65,16 +65,39 @@ POST /tasks/{id}/execute   - Manually trigger task execution (future)
 The Telegram integration uses a **long-polling** approach rather than webhooks, making it suitable for local network deployment without requiring public endpoints.
 
 **Components:**
-- **TelegramPoller**: Continuously polls Telegram API for updates using `getUpdates`
-- **TelegramMessageHandler**: Routes messages to orchestrator and sends responses
-- **Telegram MCP Server**: Provides tools for sending messages (optional)
+- **TelegramPoller** (`Backend/src/services/telegram/poller.py`): Long-polling client that fetches updates from the Telegram API using `getUpdates`. Implements automatic reconnection with exponential backoff and validates users against a whitelist.
+- **TelegramMessageHandler** (`Backend/src/services/telegram/message_handler.py`): Routes incoming messages to the orchestrator and sends responses back. Handles bot commands, typing indicators, and message splitting for long responses.
+- **TelegramSessionService** (`Backend/src/services/telegram_session_service.py`): Maps Telegram chat IDs to internal database chat sessions. Supports creating new sessions (`/new`) and clearing history (`/clear`).
+- **Telegram MCP Server** (`docker/telegram-mcp/`): Containerized FastMCP server providing tools for outbound Telegram operations.
+
+**Bot Commands:**
+| Command | Description |
+|---------|-------------|
+| `/start` | Welcome message and initial session setup |
+| `/help` | Display available commands and usage tips |
+| `/new` | Start a fresh conversation (new chat context) |
+| `/clear` | Clear messages in current conversation without starting new session |
+| `/status` | Show current session info (chat ID, message count) |
+
+**Session Management:**
+- Each Telegram chat maps to an internal database chat via `TelegramSession`
+- Users can create new chat contexts with `/new` to change topics
+- Message history is persisted in PostgreSQL for context continuity
+- `conversation_id` format: `telegram_{chat_id}`
 
 **Flow:**
 ```
-[User Phone] → [Telegram Cloud] → [Backend Poller] → [Orchestrator]
+[User Phone] → [Telegram Cloud] → [Backend Poller] → [Session Service]
+                                                          ↓
+                                                    [Orchestrator]
                                                           ↓
 [User Phone] ← [Telegram Cloud] ← [Message Handler] ←────┘
 ```
+
+**Security:**
+- User whitelist via `TELEGRAM_ALLOWED_USER_IDS` environment variable
+- Unauthorized users are logged but receive no response
+- If no whitelist is configured, a warning is logged (dev mode)
 
 ### 2. Orchestrator Agent
 
@@ -120,6 +143,36 @@ Model Context Protocol servers provide tool interfaces to external services.
 **Communication:**
 - MCP uses JSON-RPC over stdio or HTTP
 - Each sub-agent connects to its designated MCP server
+- HTTP fallback available for direct tool invocation
+
+#### 4.1 Telegram MCP Server
+
+The Telegram MCP Server (`docker/telegram-mcp/`) provides tools for outbound Telegram operations.
+
+**Implementation:**
+- Built with FastMCP framework
+- Exposes both MCP tools and HTTP endpoints
+- Runs as a sidecar container on the internal Docker network
+
+**Available Tools:**
+| Tool | Description |
+|------|-------------|
+| `send_message` | Send a text message to a Telegram chat. Supports parse modes (HTML, Markdown, MarkdownV2), reply threading, and silent notifications. |
+| `get_chat_info` | Get information about a Telegram chat (type, title, username). |
+| `send_typing_action` | Send a typing indicator to show the bot is processing. |
+
+**HTTP Endpoints:**
+```
+GET  /health                    - Health check
+POST /tools/send_message        - Send message (JSON body)
+POST /tools/get_chat_info       - Get chat info (query param: chat_id)
+POST /tools/send_typing_action  - Send typing indicator (JSON body)
+```
+
+**Configuration:**
+- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather (required)
+- Listens on port 8080 within Docker network
+- Health check ensures container is ready before backend starts
 
 ### 5. Todo/Task System
 
