@@ -7,6 +7,7 @@ Pydantic models for chat request and response handling.
 
 from datetime import datetime
 from typing import Literal, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -39,7 +40,7 @@ class ChatRequest(BaseModel):
 
     Attributes:
         message: The user's message to the orchestrator.
-        conversation_id: Optional ID to continue an existing conversation.
+        chat_id: Optional UUID to continue an existing chat session.
     """
 
     message: str = Field(
@@ -47,9 +48,9 @@ class ChatRequest(BaseModel):
         max_length=10000,
         description="The user's message to send to the orchestrator"
     )
-    conversation_id: Optional[str] = Field(
+    chat_id: Optional[UUID] = Field(
         default=None,
-        description="Optional conversation ID to continue an existing conversation"
+        description="Optional chat ID (UUID) to continue an existing conversation"
     )
 
     model_config = {
@@ -57,7 +58,7 @@ class ChatRequest(BaseModel):
             "examples": [
                 {
                     "message": "Create a todo item to review the project architecture",
-                    "conversation_id": None
+                    "chat_id": None
                 }
             ]
         }
@@ -70,7 +71,7 @@ class ChatResponse(BaseModel):
 
     Attributes:
         response: The orchestrator's response message.
-        conversation_id: ID of the conversation for future reference.
+        chat_id: UUID of the chat session for future reference.
         tokens_used: Number of tokens consumed by this request.
         processing_time_ms: Time taken to process the request in milliseconds.
     """
@@ -78,8 +79,8 @@ class ChatResponse(BaseModel):
     response: str = Field(
         description="The orchestrator's response message"
     )
-    conversation_id: str = Field(
-        description="Conversation ID for continuing the conversation"
+    chat_id: UUID = Field(
+        description="Chat ID (UUID) for continuing the conversation"
     )
     tokens_used: Optional[int] = Field(
         default=None,
@@ -95,7 +96,7 @@ class ChatResponse(BaseModel):
             "examples": [
                 {
                     "response": "I've created a todo item to review the project architecture. Is there anything specific you'd like me to focus on?",
-                    "conversation_id": "conv_abc123",
+                    "chat_id": "550e8400-e29b-41d4-a716-446655440000",
                     "tokens_used": 150,
                     "processing_time_ms": 1234.56
                 }

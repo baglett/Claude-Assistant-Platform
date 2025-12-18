@@ -44,7 +44,8 @@ This platform provides a personal AI assistant that:
 - Python 3.12 or higher
 - Docker and Docker Compose
 - Anthropic API key
-- Telegram Bot Token
+- Telegram Bot Token (from @BotFather)
+- Your Telegram User ID (from @userinfobot)
 
 ### Installation
 
@@ -67,11 +68,78 @@ docker-compose up -d
 
 See `.env.example` for all available configuration options.
 
+### Telegram Setup
+
+1. **Create a Telegram Bot:**
+   - Open Telegram and search for `@BotFather`
+   - Send `/newbot` and follow the prompts
+   - Copy the bot token provided
+
+2. **Get Your User ID:**
+   - Search for `@userinfobot` in Telegram
+   - Send `/start` to get your user ID
+
+3. **Configure Environment:**
+   ```bash
+   # In your .env file
+   TELEGRAM_BOT_TOKEN=your-bot-token-here
+   TELEGRAM_ALLOWED_USER_IDS=your-user-id-here
+
+   # Optional: Add multiple users (comma-separated)
+   TELEGRAM_ALLOWED_USER_IDS=123456789,987654321
+   ```
+
+4. **Start the Platform:**
+   ```bash
+   docker-compose up -d
+   ```
+
+5. **Test the Bot:**
+   - Open a chat with your bot in Telegram
+   - Send `/start` for a welcome message
+   - Send a message like "Hello!" to start chatting with Claude
+
+### Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Welcome message and initial setup |
+| `/help` | Display available commands |
+| `/new` | Start a fresh conversation (clears context) |
+| `/clear` | Clear messages in current conversation |
+| `/status` | Show session info and message count |
+
+### Telegram Configuration Options
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | (required) |
+| `TELEGRAM_ALLOWED_USER_IDS` | Comma-separated list of allowed user IDs | (required) |
+| `TELEGRAM_POLLING_TIMEOUT` | Long-polling timeout in seconds | 30 |
+| `TELEGRAM_ENABLED` | Enable/disable Telegram integration | true |
+| `TELEGRAM_MCP_HOST` | Telegram MCP server hostname | telegram-mcp |
+| `TELEGRAM_MCP_PORT` | Telegram MCP server port | 8080 |
+
+### Troubleshooting Telegram
+
+**Bot not responding:**
+- Check that your user ID is in `TELEGRAM_ALLOWED_USER_IDS`
+- Verify the bot token is correct with `curl https://api.telegram.org/bot<TOKEN>/getMe`
+- Check backend logs: `docker logs claude-assistant-backend`
+
+**Connection errors:**
+- Ensure the `telegram-mcp` container is healthy: `docker ps`
+- Check MCP server logs: `docker logs claude-assistant-telegram-mcp`
+
+**Message not being processed:**
+- The bot only responds to text messages (no images/stickers yet)
+- Unauthorized users are logged but receive no response
+
 ## Project Structure
 
 ```
 claude-assistant-platform/
-├── frontend/                 # Next.js frontend application
+├── Frontend/                 # Next.js frontend application
 │   ├── src/
 │   │   ├── app/              # Next.js app router
 │   │   ├── components/       # React components
@@ -79,16 +147,25 @@ claude-assistant-platform/
 │   │   └── lib/              # Utilities and helpers
 │   ├── package.json
 │   └── Dockerfile
-├── backend/                  # Python backend application
+├── Backend/                  # Python backend application
 │   ├── src/
-│   │   ├── agents/           # Agent definitions (orchestrator, sub-agents)
+│   │   ├── agents/           # Agent definitions (orchestrator)
 │   │   ├── api/              # FastAPI endpoints
-│   │   ├── mcp/              # MCP server integrations
+│   │   ├── config/           # Settings and configuration
 │   │   ├── services/         # Business logic services
+│   │   │   └── telegram/     # Telegram integration
+│   │   │       ├── models.py       # Pydantic models
+│   │   │       ├── poller.py       # Long-polling client
+│   │   │       └── message_handler.py  # Message routing
 │   │   └── models/           # Data models and schemas
 │   ├── tests/                # Test suite
-│   ├── requirements.txt      # Python dependencies
+│   ├── pyproject.toml        # Python dependencies (uv)
 │   └── Dockerfile
+├── docker/                   # Docker configurations
+│   └── telegram-mcp/         # Telegram MCP server
+│       ├── src/server.py     # FastMCP server
+│       ├── pyproject.toml
+│       └── Dockerfile
 ├── docker-compose.yml        # Container orchestration
 └── .env.example              # Environment template
 ```
