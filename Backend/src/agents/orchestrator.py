@@ -8,14 +8,17 @@ The orchestrator is responsible for:
 - Receiving and parsing user messages
 - Determining intent and required actions
 - Delegating to specialized sub-agents when needed
-- Managing conversation context
+- Managing conversation context (stored in database)
 - Aggregating and formatting responses
 """
 
 import logging
 from typing import Optional
+from uuid import UUID
 
 import anthropic
+
+from src.services.chat_service import ChatService, get_chat_service
 
 
 # -----------------------------------------------------------------------------
@@ -68,18 +71,22 @@ class OrchestratorAgent:
     This agent serves as the central coordinator for the Claude Assistant
     Platform, handling user interactions and delegating to sub-agents.
 
+    Conversation history is persisted to the database for context management
+    across sessions.
+
     Attributes:
         client: Anthropic API client instance.
         model: Claude model identifier to use.
-        conversation_history: Dictionary mapping conversation IDs to message lists.
-        max_history_length: Maximum number of messages to retain per conversation.
+        chat_service: Service for database chat operations.
+        max_history_length: Maximum number of messages to include in context.
     """
 
     def __init__(
         self,
         api_key: str,
         model: str = "claude-sonnet-4-20250514",
-        max_history_length: int = 50
+        max_history_length: int = 50,
+        chat_service: Optional[ChatService] = None,
     ) -> None:
         """
         Initialize the orchestrator agent.
@@ -87,74 +94,35 @@ class OrchestratorAgent:
         Args:
             api_key: Anthropic API key for authentication.
             model: Claude model identifier to use for completions.
-            max_history_length: Maximum messages to retain per conversation.
+            max_history_length: Maximum messages to include in context.
+            chat_service: Optional ChatService instance for database operations.
         """
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
         self.max_history_length = max_history_length
-
-        # In-memory conversation storage (replace with database in production)
-        self.conversation_history: dict[str, list[dict]] = {}
+        self.chat_service = chat_service or get_chat_service()
 
         logger.info(f"OrchestratorAgent initialized with model: {model}")
-
-    def _get_conversation(self, conversation_id: str) -> list[dict]:
-        """
-        Get or create conversation history for a given ID.
-
-        Args:
-            conversation_id: Unique identifier for the conversation.
-
-        Returns:
-            List of message dictionaries for the conversation.
-        """
-        if conversation_id not in self.conversation_history:
-            self.conversation_history[conversation_id] = []
-
-        return self.conversation_history[conversation_id]
-
-    def _add_message(
-        self,
-        conversation_id: str,
-        role: str,
-        content: str
-    ) -> None:
-        """
-        Add a message to conversation history.
-
-        Args:
-            conversation_id: Unique identifier for the conversation.
-            role: Message role ('user' or 'assistant').
-            content: Message content text.
-        """
-        conversation = self._get_conversation(conversation_id)
-        conversation.append({"role": role, "content": content})
-
-        # Trim history if it exceeds max length
-        if len(conversation) > self.max_history_length:
-            # Keep the most recent messages
-            self.conversation_history[conversation_id] = conversation[
-                -self.max_history_length:
-            ]
 
     async def process_message(
         self,
         message: str,
-        conversation_id: str
+        chat_id: UUID,
     ) -> tuple[str, Optional[int]]:
         """
         Process a user message and generate a response.
 
         This is the main entry point for handling user interactions.
         The orchestrator will:
-        1. Add the user message to conversation history
-        2. Send the conversation to Claude for processing
-        3. Parse the response and determine any required actions
-        4. Return the response to the user
+        1. Save the user message to the database
+        2. Load conversation history from the database
+        3. Send the conversation to Claude for processing
+        4. Save the assistant response to the database
+        5. Return the response to the user
 
         Args:
             message: The user's input message.
-            conversation_id: Unique identifier for the conversation.
+            chat_id: UUID of the chat session (from database).
 
         Returns:
             Tuple of (response_text, tokens_used).
@@ -162,13 +130,15 @@ class OrchestratorAgent:
         Raises:
             Exception: If the API call fails.
         """
-        logger.info(f"Processing message for conversation: {conversation_id}")
+        logger.info(f"Processing message for chat: {chat_id}")
 
-        # Add user message to history
-        self._add_message(conversation_id, "user", message)
+        # Save user message to database
+        await self.chat_service.add_user_message(chat_id, message)
 
-        # Get full conversation history
-        messages = self._get_conversation(conversation_id)
+        # Get conversation history from database
+        messages = await self.chat_service.get_conversation_history(
+            chat_id, limit=self.max_history_length
+        )
 
         try:
             # Call Claude API
@@ -176,7 +146,7 @@ class OrchestratorAgent:
                 model=self.model,
                 max_tokens=4096,
                 system=ORCHESTRATOR_SYSTEM_PROMPT,
-                messages=messages
+                messages=messages,
             )
 
             # Extract response text
@@ -185,15 +155,22 @@ class OrchestratorAgent:
                 if hasattr(block, "text"):
                     response_text += block.text
 
-            # Add assistant response to history
-            self._add_message(conversation_id, "assistant", response_text)
-
             # Calculate tokens used
-            tokens_used = response.usage.input_tokens + response.usage.output_tokens
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+            tokens_used = input_tokens + output_tokens
 
-            logger.info(
-                f"Response generated. Tokens used: {tokens_used}"
+            # Save assistant response to database with metadata
+            await self.chat_service.add_assistant_message(
+                chat_id=chat_id,
+                content=response_text,
+                llm_model=self.model,
+                tokens_used=tokens_used,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
             )
+
+            logger.info(f"Response generated. Tokens used: {tokens_used}")
 
             return response_text, tokens_used
 
@@ -205,37 +182,37 @@ class OrchestratorAgent:
             logger.error(f"Unexpected error in process_message: {e}")
             raise
 
-    def clear_conversation(self, conversation_id: str) -> bool:
+    async def clear_conversation(self, chat_id: UUID) -> bool:
         """
-        Clear the conversation history for a given ID.
+        Clear the conversation history for a chat.
 
         Args:
-            conversation_id: Unique identifier for the conversation.
+            chat_id: UUID of the chat to clear.
 
         Returns:
-            True if conversation was cleared, False if it didn't exist.
+            True if messages were cleared, False otherwise.
         """
-        if conversation_id in self.conversation_history:
-            del self.conversation_history[conversation_id]
-            logger.info(f"Cleared conversation: {conversation_id}")
-            return True
+        try:
+            count = await self.chat_service.clear_chat_messages(chat_id)
+            logger.info(f"Cleared {count} messages from chat: {chat_id}")
+            return count > 0
+        except Exception as e:
+            logger.error(f"Error clearing chat {chat_id}: {e}")
+            return False
 
-        return False
-
-    def get_conversation_summary(self, conversation_id: str) -> dict:
+    async def get_conversation_summary(self, chat_id: UUID) -> dict:
         """
         Get a summary of a conversation.
 
         Args:
-            conversation_id: Unique identifier for the conversation.
+            chat_id: UUID of the chat.
 
         Returns:
             Dictionary with conversation metadata.
         """
-        conversation = self._get_conversation(conversation_id)
+        messages = await self.chat_service.get_messages(chat_id)
 
         return {
-            "conversation_id": conversation_id,
-            "message_count": len(conversation),
-            "exists": conversation_id in self.conversation_history
+            "chat_id": str(chat_id),
+            "message_count": len(messages),
         }

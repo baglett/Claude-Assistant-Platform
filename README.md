@@ -44,7 +44,8 @@ This platform provides a personal AI assistant that:
 - Python 3.12 or higher
 - Docker and Docker Compose
 - Anthropic API key
-- Telegram Bot Token
+- Telegram Bot Token (from @BotFather)
+- Your Telegram User ID (from @userinfobot)
 
 ### Installation
 
@@ -67,11 +68,39 @@ docker-compose up -d
 
 See `.env.example` for all available configuration options.
 
+### Telegram Setup
+
+1. **Create a Telegram Bot:**
+   - Open Telegram and search for `@BotFather`
+   - Send `/newbot` and follow the prompts
+   - Copy the bot token provided
+
+2. **Get Your User ID:**
+   - Search for `@userinfobot` in Telegram
+   - Send `/start` to get your user ID
+
+3. **Configure Environment:**
+   ```bash
+   # In your .env file
+   TELEGRAM_BOT_TOKEN=your-bot-token-here
+   TELEGRAM_ALLOWED_USER_IDS=your-user-id-here
+   ```
+
+4. **Start the Platform:**
+   ```bash
+   docker-compose up -d
+   ```
+
+5. **Test the Bot:**
+   - Open a chat with your bot in Telegram
+   - Send a message like "Hello!"
+   - The bot should respond via Claude
+
 ## Project Structure
 
 ```
 claude-assistant-platform/
-├── frontend/                 # Next.js frontend application
+├── Frontend/                 # Next.js frontend application
 │   ├── src/
 │   │   ├── app/              # Next.js app router
 │   │   ├── components/       # React components
@@ -79,16 +108,25 @@ claude-assistant-platform/
 │   │   └── lib/              # Utilities and helpers
 │   ├── package.json
 │   └── Dockerfile
-├── backend/                  # Python backend application
+├── Backend/                  # Python backend application
 │   ├── src/
-│   │   ├── agents/           # Agent definitions (orchestrator, sub-agents)
+│   │   ├── agents/           # Agent definitions (orchestrator)
 │   │   ├── api/              # FastAPI endpoints
-│   │   ├── mcp/              # MCP server integrations
+│   │   ├── config/           # Settings and configuration
 │   │   ├── services/         # Business logic services
+│   │   │   └── telegram/     # Telegram integration
+│   │   │       ├── models.py       # Pydantic models
+│   │   │       ├── poller.py       # Long-polling client
+│   │   │       └── message_handler.py  # Message routing
 │   │   └── models/           # Data models and schemas
 │   ├── tests/                # Test suite
-│   ├── requirements.txt      # Python dependencies
+│   ├── pyproject.toml        # Python dependencies (uv)
 │   └── Dockerfile
+├── docker/                   # Docker configurations
+│   └── telegram-mcp/         # Telegram MCP server
+│       ├── src/server.py     # FastMCP server
+│       ├── pyproject.toml
+│       └── Dockerfile
 ├── docker-compose.yml        # Container orchestration
 └── .env.example              # Environment template
 ```

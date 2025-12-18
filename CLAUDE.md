@@ -59,8 +59,11 @@ This is a self-hosted AI assistant platform using the Claude Agents SDK. The sys
 
 Required environment variables (see `.env.example`):
 
-- `ANTHROPIC_API_KEY` - Claude API access
-- `TELEGRAM_BOT_TOKEN` - Telegram bot authentication
+- `ANTHROPIC_API_KEY` - Claude API access (required)
+- `TELEGRAM_BOT_TOKEN` - Telegram bot authentication (required for Telegram)
+- `TELEGRAM_ALLOWED_USER_IDS` - Comma-separated whitelist of user IDs
+- `TELEGRAM_POLLING_TIMEOUT` - Long-polling timeout (default: 30)
+- `TELEGRAM_ENABLED` - Enable/disable Telegram (default: true)
 - `GITHUB_TOKEN` - GitHub MCP access (optional)
 - Additional MCP-specific credentials as needed
 
@@ -126,6 +129,31 @@ uv run pytest --cov=src
 
 ### [Unreleased]
 
+#### Telegram Integration (Phase 1)
+- Added Telegram settings to `Backend/src/config/settings.py`
+  - `telegram_bot_token`, `telegram_allowed_user_ids`, `telegram_polling_timeout`
+  - `telegram_enabled`, `telegram_mcp_host`, `telegram_mcp_port`
+  - Computed properties: `telegram_allowed_user_ids_list`, `telegram_mcp_url`, `telegram_is_configured`
+- Created `Backend/src/services/telegram/` package:
+  - `models.py` - Pydantic models for Telegram API data structures
+  - `poller.py` - TelegramPoller class with long-polling implementation
+  - `message_handler.py` - TelegramMessageHandler for routing to orchestrator
+- Updated `Backend/src/api/main.py` lifespan to:
+  - Initialize OrchestratorAgent on startup
+  - Initialize TelegramPoller and TelegramMessageHandler
+  - Start poller as background task
+  - Graceful shutdown of poller and handler
+- Created `docker/telegram-mcp/` Telegram MCP Server:
+  - FastMCP server with `send_message`, `get_chat_info`, `send_typing_action` tools
+  - FastAPI HTTP endpoints for direct tool access
+  - Dockerfile with multi-stage build
+- Updated `docker-compose.yml`:
+  - Added `telegram-mcp` service
+  - Added Telegram environment variables to backend service
+  - Backend now depends on telegram-mcp service health
+- Updated `.env.example` with comprehensive Telegram configuration
+
+#### Previous
 - Initial project scaffolding
 - Architecture and requirements documentation
 - Adopted uv for Python package management (replacing pip)

@@ -12,7 +12,7 @@ export
 # Variables
 # -----------------------------------------------------------------------------
 UV = uv
-HOST = 127.0.0.1
+HOST = 0.0.0.0
 PORT = 8000
 
 # -----------------------------------------------------------------------------
@@ -26,13 +26,15 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  install    Install dependencies using uv"
-	@echo "  run        Run the backend server locally (port $(PORT))"
+	@echo "  run        Run backend with Telegram bot (port $(PORT))"
 	@echo "  dev        Run with auto-reload for development"
 	@echo "  test       Run tests"
 	@echo "  lint       Run linter (ruff)"
 	@echo "  format     Format code (ruff)"
 	@echo "  clean      Remove virtual environment and cache"
 	@echo "  lock       Update uv.lock file"
+	@echo ""
+	@echo "Note: Set TELEGRAM_BOT_TOKEN in ../.env for Telegram integration"
 
 # -----------------------------------------------------------------------------
 # Setup targets
@@ -50,12 +52,26 @@ lock:
 # -----------------------------------------------------------------------------
 .PHONY: run
 run:
-	@echo "Starting backend server on http://$(HOST):$(PORT)"
+	@echo "============================================"
+	@echo "Starting Claude Assistant Backend"
+	@echo "============================================"
+	@echo "API: http://localhost:$(PORT)"
+	@echo "Docs: http://localhost:$(PORT)/docs"
+	@echo ""
+	@echo "Telegram: Will auto-start if TELEGRAM_BOT_TOKEN is set"
+	@echo "============================================"
 	$(UV) run uvicorn src.api.main:app --host $(HOST) --port $(PORT)
 
 .PHONY: dev
 dev:
-	@echo "Starting backend server in development mode on http://$(HOST):$(PORT)"
+	@echo "============================================"
+	@echo "Starting Claude Assistant Backend (DEV)"
+	@echo "============================================"
+	@echo "API: http://localhost:$(PORT)"
+	@echo "Docs: http://localhost:$(PORT)/docs"
+	@echo ""
+	@echo "Telegram: Will auto-start if TELEGRAM_BOT_TOKEN is set"
+	@echo "============================================"
 	$(UV) run uvicorn src.api.main:app --host $(HOST) --port $(PORT) --reload
 
 # -----------------------------------------------------------------------------
