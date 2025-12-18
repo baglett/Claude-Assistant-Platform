@@ -149,10 +149,28 @@ Model Context Protocol servers provide tool interfaces to external services.
 
 The Telegram MCP Server (`docker/telegram-mcp/`) provides tools for outbound Telegram operations.
 
+**Why MCP vs Direct API?**
+
+The backend already uses the Telegram API directly for basic request/response flows:
+- `TelegramPoller` calls `getUpdates` to receive messages
+- `TelegramMessageHandler` calls `sendMessage` to respond
+
+The MCP server serves a different purpose - it allows the **AI agent** to initiate outbound Telegram actions:
+
+| Scenario | Who Sends | Method |
+|----------|-----------|--------|
+| Responding to user message | MessageHandler | Direct API |
+| Agent notifies user proactively | Orchestrator/Sub-agents | MCP Tools |
+| Agent sends typing during long task | Orchestrator | MCP Tools |
+| Task completion notification | Sub-agents | MCP Tools |
+
+This follows the architectural pattern: **Agents interact with external services through MCP tools, not direct API calls.** This keeps agents decoupled from API implementation details and maintains consistency with other integrations (GitHub MCP, Email MCP, etc.).
+
 **Implementation:**
 - Built with FastMCP framework
 - Exposes both MCP tools and HTTP endpoints
 - Runs as a sidecar container on the internal Docker network
+- MessageHandler supports both direct API and MCP paths (configurable)
 
 **Available Tools:**
 | Tool | Description |
