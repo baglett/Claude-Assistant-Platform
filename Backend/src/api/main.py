@@ -8,16 +8,20 @@ This module creates and configures the FastAPI application instance,
 including middleware, routes, and exception handlers.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.agents.orchestrator import OrchestratorAgent
 from src.api.routes import chat, health
 from src.config import get_settings
+from src.database import close_database, init_database
+from src.services.telegram import TelegramMessageHandler, TelegramPoller
 
 
 # -----------------------------------------------------------------------------
@@ -40,6 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Handles startup and shutdown procedures including:
     - Database connection initialization
+    - Telegram poller initialization and startup
     - Resource cleanup on shutdown
 
     Args:
@@ -53,20 +58,102 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Starting {settings.app_name} in {settings.app_env} mode")
     logger.info(f"Debug mode: {settings.debug}")
 
-    if not settings.anthropic_api_key:
+    # -------------------------------------------------------------------------
+    # Initialize Database Connection
+    # -------------------------------------------------------------------------
+    await init_database()
+    logger.info("Database connection initialized")
+
+    # Track background tasks and handlers for cleanup
+    telegram_poller_task: Optional[asyncio.Task] = None
+    telegram_handler: Optional[TelegramMessageHandler] = None
+
+    # -------------------------------------------------------------------------
+    # Initialize Orchestrator Agent
+    # -------------------------------------------------------------------------
+    orchestrator: Optional[OrchestratorAgent] = None
+
+    if settings.anthropic_api_key:
+        orchestrator = OrchestratorAgent(
+            api_key=settings.anthropic_api_key,
+            model=settings.claude_model,
+        )
+        app.state.orchestrator = orchestrator
+        logger.info("Orchestrator agent initialized")
+    else:
         logger.warning(
             "ANTHROPIC_API_KEY not set. Chat functionality will be unavailable."
         )
 
-    # TODO: Initialize database connection pool here
-    # TODO: Initialize any background tasks
+    # -------------------------------------------------------------------------
+    # Initialize Telegram Poller
+    # -------------------------------------------------------------------------
+    if settings.telegram_is_configured and orchestrator:
+        logger.info("Initializing Telegram integration...")
+
+        # Create the message handler
+        telegram_handler = TelegramMessageHandler(
+            orchestrator=orchestrator,
+            bot_token=settings.telegram_bot_token,
+            mcp_url=settings.telegram_mcp_url if settings.telegram_mcp_host else None,
+        )
+
+        # Create the poller
+        telegram_poller = TelegramPoller(
+            bot_token=settings.telegram_bot_token,
+            allowed_user_ids=settings.telegram_allowed_user_ids_list,
+            polling_timeout=settings.telegram_polling_timeout,
+            message_handler=telegram_handler.handle_message,
+        )
+
+        # Verify bot token before starting
+        if await telegram_poller.verify_token():
+            # Start the poller as a background task
+            telegram_poller_task = asyncio.create_task(
+                telegram_poller.start(),
+                name="telegram_poller",
+            )
+            app.state.telegram_poller = telegram_poller
+            app.state.telegram_handler = telegram_handler
+            logger.info("Telegram poller started as background task")
+        else:
+            logger.error(
+                "Failed to verify Telegram bot token. "
+                "Telegram integration disabled."
+            )
+    elif settings.telegram_enabled and not settings.telegram_bot_token:
+        logger.warning(
+            "TELEGRAM_BOT_TOKEN not set. Telegram integration disabled."
+        )
+    elif settings.telegram_enabled and not orchestrator:
+        logger.warning(
+            "Orchestrator not available. Telegram integration disabled."
+        )
 
     yield
 
+    # -------------------------------------------------------------------------
     # Shutdown
+    # -------------------------------------------------------------------------
     logger.info("Shutting down application...")
-    # TODO: Close database connections
-    # TODO: Cancel background tasks
+
+    # Stop Telegram poller
+    if telegram_poller_task and not telegram_poller_task.done():
+        logger.info("Stopping Telegram poller...")
+        telegram_poller_task.cancel()
+        try:
+            await telegram_poller_task
+        except asyncio.CancelledError:
+            logger.info("Telegram poller stopped")
+
+    # Close Telegram handler HTTP client
+    if telegram_handler:
+        await telegram_handler.close()
+        logger.info("Telegram handler closed")
+
+    # Close database connection
+    await close_database()
+    logger.info("Database connection closed")
 
 
 # -----------------------------------------------------------------------------

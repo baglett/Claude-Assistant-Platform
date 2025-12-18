@@ -5,8 +5,8 @@
 Chat endpoints for interacting with the orchestrator agent.
 """
 
+import logging
 import time
-import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -14,6 +14,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from src.agents import OrchestratorAgent
 from src.config import Settings, get_settings
 from src.models.chat import ChatRequest, ChatResponse, ErrorResponse
+from src.services.chat_service import get_chat_service
+
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
 
 # -----------------------------------------------------------------------------
@@ -116,14 +123,20 @@ async def chat(
     """
     start_time = time.time()
 
-    # Generate or use existing conversation ID
-    conversation_id = request.conversation_id or f"conv_{uuid.uuid4().hex[:12]}"
+    # Get or create a chat session using the chat service
+    chat_service = get_chat_service()
 
     try:
+        # Get existing chat or create a new one
+        chat = await chat_service.get_or_create_chat(chat_id=request.chat_id)
+        chat_id = chat.id
+
+        logger.info(f"Processing chat request for chat_id: {chat_id}")
+
         # Process the message through the orchestrator
         response_text, tokens_used = await orchestrator.process_message(
             message=request.message,
-            conversation_id=conversation_id
+            chat_id=chat_id
         )
 
         # Calculate processing time
@@ -131,14 +144,13 @@ async def chat(
 
         return ChatResponse(
             response=response_text,
-            conversation_id=conversation_id,
+            chat_id=chat_id,
             tokens_used=tokens_used,
             processing_time_ms=round(processing_time_ms, 2)
         )
 
     except Exception as e:
-        # Log the error (in production, use proper logging)
-        print(f"Error processing chat request: {e}")
+        logger.error(f"Error processing chat request: {e}", exc_info=True)
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -147,28 +159,46 @@ async def chat(
 
 
 @router.get(
-    "/conversations/{conversation_id}",
+    "/conversations/{chat_id}",
     summary="Get Conversation History",
-    description="Retrieve the history of a specific conversation.",
+    description="Retrieve the history of a specific chat session.",
     dependencies=[Depends(verify_localhost)]
 )
-async def get_conversation(conversation_id: str) -> dict:
+async def get_conversation(chat_id: str) -> dict:
     """
-    Get the history of a conversation.
+    Get the history of a chat session.
 
     Args:
-        conversation_id: The ID of the conversation to retrieve.
+        chat_id: The UUID of the chat session to retrieve.
 
     Returns:
         Dictionary containing conversation history.
-
-    Note:
-        This is a placeholder implementation. Full implementation
-        requires database integration.
     """
-    # TODO: Implement conversation history retrieval from database
-    return {
-        "conversation_id": conversation_id,
-        "messages": [],
-        "message": "Conversation history not yet implemented"
-    }
+    from uuid import UUID
+
+    chat_service = get_chat_service()
+
+    try:
+        # Parse the UUID
+        chat_uuid = UUID(chat_id)
+
+        # Get conversation history
+        messages = await chat_service.get_conversation_history(chat_uuid)
+
+        return {
+            "chat_id": chat_id,
+            "messages": messages,
+            "message_count": len(messages)
+        }
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid chat_id format. Must be a valid UUID."
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving conversation: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve conversation: {str(e)}"
+        )

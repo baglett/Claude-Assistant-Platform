@@ -47,18 +47,57 @@ The Claude Assistant Platform follows a multi-agent orchestration pattern. A cen
 The FastAPI application serves as the HTTP backbone for the platform.
 
 **Responsibilities:**
-- Receive Telegram webhook callbacks
+- Manage application lifecycle (including Telegram poller)
 - Expose health check and status endpoints
 - Provide internal API for agent communication
 - Handle async task queuing
 
 **Endpoints:**
 ```
-POST /webhook/telegram     - Telegram bot webhook
 GET  /health               - Health check
-GET  /tasks                - List current tasks
-POST /tasks/{id}/execute   - Manually trigger task execution
+GET  /api/chat             - Chat API endpoints
+GET  /tasks                - List current tasks (future)
+POST /tasks/{id}/execute   - Manually trigger task execution (future)
 ```
+
+### 1.1 Telegram Integration
+
+The Telegram integration uses a **long-polling** approach rather than webhooks, making it suitable for local network deployment without requiring public endpoints.
+
+**Components:**
+- **TelegramPoller** (`Backend/src/services/telegram/poller.py`): Long-polling client that fetches updates from the Telegram API using `getUpdates`. Implements automatic reconnection with exponential backoff and validates users against a whitelist.
+- **TelegramMessageHandler** (`Backend/src/services/telegram/message_handler.py`): Routes incoming messages to the orchestrator and sends responses back. Handles bot commands, typing indicators, and message splitting for long responses.
+- **TelegramSessionService** (`Backend/src/services/telegram_session_service.py`): Maps Telegram chat IDs to internal database chat sessions. Supports creating new sessions (`/new`) and clearing history (`/clear`).
+- **Telegram MCP Server** (`docker/telegram-mcp/`): Containerized FastMCP server providing tools for outbound Telegram operations.
+
+**Bot Commands:**
+| Command | Description |
+|---------|-------------|
+| `/start` | Welcome message and initial session setup |
+| `/help` | Display available commands and usage tips |
+| `/new` | Start a fresh conversation (new chat context) |
+| `/clear` | Clear messages in current conversation without starting new session |
+| `/status` | Show current session info (chat ID, message count) |
+
+**Session Management:**
+- Each Telegram chat maps to an internal database chat via `TelegramSession`
+- Users can create new chat contexts with `/new` to change topics
+- Message history is persisted in PostgreSQL for context continuity
+- `conversation_id` format: `telegram_{chat_id}`
+
+**Flow:**
+```
+[User Phone] → [Telegram Cloud] → [Backend Poller] → [Session Service]
+                                                          ↓
+                                                    [Orchestrator]
+                                                          ↓
+[User Phone] ← [Telegram Cloud] ← [Message Handler] ←────┘
+```
+
+**Security:**
+- User whitelist via `TELEGRAM_ALLOWED_USER_IDS` environment variable
+- Unauthorized users are logged but receive no response
+- If no whitelist is configured, a warning is logged (dev mode)
 
 ### 2. Orchestrator Agent
 
@@ -104,6 +143,54 @@ Model Context Protocol servers provide tool interfaces to external services.
 **Communication:**
 - MCP uses JSON-RPC over stdio or HTTP
 - Each sub-agent connects to its designated MCP server
+- HTTP fallback available for direct tool invocation
+
+#### 4.1 Telegram MCP Server
+
+The Telegram MCP Server (`docker/telegram-mcp/`) provides tools for outbound Telegram operations.
+
+**Why MCP vs Direct API?**
+
+The backend already uses the Telegram API directly for basic request/response flows:
+- `TelegramPoller` calls `getUpdates` to receive messages
+- `TelegramMessageHandler` calls `sendMessage` to respond
+
+The MCP server serves a different purpose - it allows the **AI agent** to initiate outbound Telegram actions:
+
+| Scenario | Who Sends | Method |
+|----------|-----------|--------|
+| Responding to user message | MessageHandler | Direct API |
+| Agent notifies user proactively | Orchestrator/Sub-agents | MCP Tools |
+| Agent sends typing during long task | Orchestrator | MCP Tools |
+| Task completion notification | Sub-agents | MCP Tools |
+
+This follows the architectural pattern: **Agents interact with external services through MCP tools, not direct API calls.** This keeps agents decoupled from API implementation details and maintains consistency with other integrations (GitHub MCP, Email MCP, etc.).
+
+**Implementation:**
+- Built with FastMCP framework
+- Exposes both MCP tools and HTTP endpoints
+- Runs as a sidecar container on the internal Docker network
+- MessageHandler supports both direct API and MCP paths (configurable)
+
+**Available Tools:**
+| Tool | Description |
+|------|-------------|
+| `send_message` | Send a text message to a Telegram chat. Supports parse modes (HTML, Markdown, MarkdownV2), reply threading, and silent notifications. |
+| `get_chat_info` | Get information about a Telegram chat (type, title, username). |
+| `send_typing_action` | Send a typing indicator to show the bot is processing. |
+
+**HTTP Endpoints:**
+```
+GET  /health                    - Health check
+POST /tools/send_message        - Send message (JSON body)
+POST /tools/get_chat_info       - Get chat info (query param: chat_id)
+POST /tools/send_typing_action  - Send typing indicator (JSON body)
+```
+
+**Configuration:**
+- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather (required)
+- Listens on port 8080 within Docker network
+- Health check ensures container is ready before backend starts
 
 ### 5. Todo/Task System
 
@@ -182,15 +269,17 @@ services:
 
 ```
 1. User sends Telegram message
-2. Telegram API → Webhook → FastAPI endpoint
-3. FastAPI queues message for orchestrator
-4. Orchestrator parses intent
-5. Orchestrator creates todo(s) if needed
-6. Orchestrator hands off to sub-agent(s)
-7. Sub-agent executes via MCP tools
-8. Results return to orchestrator
-9. Orchestrator formats response
-10. Response sent via Telegram MCP
+2. Telegram API stores message
+3. Backend TelegramPoller fetches updates via getUpdates (long-polling)
+4. Poller validates user against whitelist
+5. TelegramMessageHandler routes to OrchestratorAgent
+6. Orchestrator parses intent
+7. Orchestrator creates todo(s) if needed
+8. Orchestrator hands off to sub-agent(s) (future)
+9. Sub-agent executes via MCP tools (future)
+10. Results return to orchestrator
+11. Orchestrator formats response
+12. MessageHandler sends response via Telegram API (or MCP)
 ```
 
 ### Todo Execution Flow

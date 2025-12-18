@@ -1,11 +1,11 @@
 # =============================================================================
-# Claude Assistant Platform - Backend Makefile
+# Telegram MCP Server - Makefile
 # =============================================================================
 # Uses uv for Python package management
 # =============================================================================
 
 # Load environment variables from root .env
--include ../.env
+-include ../../.env
 export
 
 # -----------------------------------------------------------------------------
@@ -13,20 +13,20 @@ export
 # -----------------------------------------------------------------------------
 UV = uv
 HOST = 0.0.0.0
-PORT = 8000
+PORT = 8080
 
 # -----------------------------------------------------------------------------
 # Default target
 # -----------------------------------------------------------------------------
 .PHONY: help
 help:
-	@echo "Claude Assistant Platform - Backend"
+	@echo "Telegram MCP Server"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
 	@echo "  install    Install dependencies using uv"
-	@echo "  run        Run backend with Telegram bot (port $(PORT))"
+	@echo "  run        Run MCP server (port $(PORT))"
 	@echo "  dev        Run with auto-reload for development"
 	@echo "  test       Run tests"
 	@echo "  lint       Run linter (ruff)"
@@ -34,7 +34,7 @@ help:
 	@echo "  clean      Remove virtual environment and cache"
 	@echo "  lock       Update uv.lock file"
 	@echo ""
-	@echo "Note: Set TELEGRAM_BOT_TOKEN in ../.env for Telegram integration"
+	@echo "Note: Set TELEGRAM_BOT_TOKEN in ../../.env for Telegram integration"
 
 # -----------------------------------------------------------------------------
 # Setup targets
@@ -53,26 +53,22 @@ lock:
 .PHONY: run
 run:
 	@echo "============================================"
-	@echo "Starting Claude Assistant Backend"
+	@echo "Starting Telegram MCP Server"
 	@echo "============================================"
-	@echo "API: http://localhost:$(PORT)"
-	@echo "Docs: http://localhost:$(PORT)/docs"
-	@echo ""
-	@echo "Telegram: Will auto-start if TELEGRAM_BOT_TOKEN is set"
+	@echo "Server: http://localhost:$(PORT)"
+	@echo "Health: http://localhost:$(PORT)/health"
 	@echo "============================================"
-	$(UV) run uvicorn src.api.main:app --host $(HOST) --port $(PORT)
+	$(UV) run python -m src.server
 
 .PHONY: dev
 dev:
 	@echo "============================================"
-	@echo "Starting Claude Assistant Backend (DEV)"
+	@echo "Starting Telegram MCP Server (DEV)"
 	@echo "============================================"
-	@echo "API: http://localhost:$(PORT)"
-	@echo "Docs: http://localhost:$(PORT)/docs"
-	@echo ""
-	@echo "Telegram: Will auto-start if TELEGRAM_BOT_TOKEN is set"
+	@echo "Server: http://localhost:$(PORT)"
+	@echo "Health: http://localhost:$(PORT)/health"
 	@echo "============================================"
-	$(UV) run uvicorn src.api.main:app --host $(HOST) --port $(PORT) --reload
+	$(UV) run uvicorn src.server:fastapi_app --host $(HOST) --port $(PORT) --reload
 
 # -----------------------------------------------------------------------------
 # Test & Lint targets
