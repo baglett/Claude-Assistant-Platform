@@ -6,6 +6,9 @@ Main FastAPI application for the Claude Assistant Platform.
 
 This module creates and configures the FastAPI application instance,
 including middleware, routes, and exception handlers.
+
+Note: On Windows, use run.py to start the application. It configures the
+correct event loop (SelectorEventLoop) required by psycopg's async support.
 """
 
 import asyncio
@@ -18,10 +21,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.agents.orchestrator import OrchestratorAgent
-from src.api.routes import chat, health
+from src.agents.todo_agent import TodoAgent
+from src.api.routes import chat, health, todos
 from src.config import get_settings
 from src.database import close_database, init_database
 from src.services.telegram import TelegramMessageHandler, TelegramPoller
+from src.services.todo_executor import TodoExecutor
 
 
 # -----------------------------------------------------------------------------
@@ -67,6 +72,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Track background tasks and handlers for cleanup
     telegram_poller_task: Optional[asyncio.Task] = None
     telegram_handler: Optional[TelegramMessageHandler] = None
+    todo_executor: Optional[TodoExecutor] = None
+    todo_executor_task: Optional[asyncio.Task] = None
 
     # -------------------------------------------------------------------------
     # Initialize Orchestrator Agent
@@ -78,8 +85,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             api_key=settings.anthropic_api_key,
             model=settings.claude_model,
         )
+
+        # Register sub-agents with the orchestrator
+        todo_agent = TodoAgent(
+            api_key=settings.anthropic_api_key,
+            model=settings.claude_model,
+        )
+        orchestrator.register_agent(todo_agent)
+        logger.info("Registered TodoAgent with orchestrator")
+
+        # Store orchestrator in app state for route access
         app.state.orchestrator = orchestrator
-        logger.info("Orchestrator agent initialized")
+        logger.info("Orchestrator agent initialized with registered sub-agents")
     else:
         logger.warning(
             "ANTHROPIC_API_KEY not set. Chat functionality will be unavailable."
@@ -130,12 +147,46 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "Orchestrator not available. Telegram integration disabled."
         )
 
+    # -------------------------------------------------------------------------
+    # Initialize Todo Executor (Background Task Processing)
+    # -------------------------------------------------------------------------
+    if orchestrator and settings.todo_executor_enabled:
+        logger.info("Initializing Todo Executor...")
+
+        todo_executor = TodoExecutor(
+            orchestrator=orchestrator,
+            check_interval=settings.todo_executor_interval,
+            batch_size=settings.todo_executor_batch_size,
+        )
+
+        # Start the executor as a background task
+        todo_executor_task = asyncio.create_task(
+            todo_executor.start(),
+            name="todo_executor",
+        )
+        app.state.todo_executor = todo_executor
+        logger.info("Todo Executor started as background task")
+    elif not settings.todo_executor_enabled:
+        logger.info("Todo Executor disabled by configuration")
+
     yield
 
     # -------------------------------------------------------------------------
     # Shutdown
     # -------------------------------------------------------------------------
     logger.info("Shutting down application...")
+
+    # Stop Todo Executor
+    if todo_executor:
+        logger.info("Stopping Todo Executor...")
+        todo_executor.stop()
+
+    if todo_executor_task and not todo_executor_task.done():
+        todo_executor_task.cancel()
+        try:
+            await todo_executor_task
+        except asyncio.CancelledError:
+            logger.info("Todo Executor stopped")
 
     # Stop Telegram poller
     if telegram_poller_task and not telegram_poller_task.done():
@@ -239,6 +290,9 @@ def create_app() -> FastAPI:
 
     # Chat routes
     app.include_router(chat.router, prefix="/api")
+
+    # Todo routes
+    app.include_router(todos.router, prefix="/api")
 
     # -------------------------------------------------------------------------
     # Root Endpoint

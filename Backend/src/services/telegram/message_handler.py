@@ -395,10 +395,15 @@ class TelegramMessageHandler:
                 telegram_user_id=message.user_id,
             )
 
+            # Build creator identifier for todo tracking
+            # Format: telegram:{user_id} - allows tracking which Telegram user created todos
+            created_by = f"telegram:{message.user_id}"
+
             # Process the message through the orchestrator with database chat_id
             response_text, tokens_used = await self.orchestrator.process_message(
                 message=message.text,
                 chat_id=chat_id,
+                created_by=created_by,
             )
 
             logger.info(
