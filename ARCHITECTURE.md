@@ -101,25 +101,41 @@ The Telegram integration uses a **long-polling** approach rather than webhooks, 
 
 ### 2. Orchestrator Agent
 
-The central coordinator built with Claude Agents SDK.
+The central coordinator using direct Anthropic Claude API with tool calling.
 
 **Responsibilities:**
 - Parse user intent from natural language
-- Maintain conversation context
-- Delegate to appropriate sub-agents via handoffs
+- Maintain conversation context (stored in database)
+- Manage todos via integrated tool calling
+- Delegate to appropriate sub-agents via todo assignment
 - Aggregate and format responses
-- Manage todo list state
 
-**Configuration:**
+**Implementation:** `Backend/src/agents/orchestrator.py`
 ```python
-orchestrator = Agent(
-    name="orchestrator",
-    model="claude-sonnet-4-20250514",
-    instructions="...",
-    tools=[telegram_respond, todo_manager],
-    handoffs=[github_agent, email_agent, calendar_agent, obsidian_agent]
+# Tool calling loop with automatic iteration
+response = client.messages.create(
+    model=model,
+    tools=TOOL_DEFINITIONS,  # 7 todo management tools
+    messages=messages,
 )
+# Handle tool_use blocks, execute via TodoToolHandler, continue loop
 ```
+
+**Available Tools:**
+| Tool | Description |
+|------|-------------|
+| `create_todo` | Create a new task with optional agent assignment |
+| `list_todos` | List todos with filtering by status, agent, priority |
+| `get_todo` | Get details of a specific todo |
+| `update_todo` | Modify todo fields (title, priority, status, etc.) |
+| `delete_todo` | Permanently delete a todo |
+| `execute_todo` | Trigger immediate execution of a pending todo |
+| `get_todo_stats` | Get aggregated statistics about todos |
+
+**Tool Handler:** `Backend/src/agents/tools/todo_tools.py`
+- `TodoToolHandler` class processes tool calls from Claude
+- Executes operations via `TodoService`
+- Links todos to chat context and creator
 
 ### 3. Sub-Agents
 
@@ -194,23 +210,58 @@ POST /tools/send_typing_action  - Send typing indicator (JSON body)
 
 ### 5. Todo/Task System
 
-Persistent task management with execution capabilities.
+Persistent task management with execution capabilities. Implemented in `tasks` schema.
 
-**Data Model:**
+**Data Model (ORM):**
 ```python
-class Todo:
-    id: str
-    content: str
-    status: Literal["pending", "in_progress", "completed", "failed"]
-    agent: str  # Which sub-agent should handle this
+class Todo(Base):
+    __tablename__ = "todos"
+    __table_args__ = {"schema": "tasks"}
+
+    id: UUID                          # Primary key
+    title: str                        # Short description (max 500 chars)
+    description: Optional[str]        # Detailed information
+    status: str                       # pending, in_progress, completed, failed, cancelled
+    assigned_agent: Optional[str]     # github, email, calendar, obsidian, orchestrator
+    priority: int                     # 1 (critical) to 5 (lowest)
+    scheduled_at: Optional[datetime]  # When to execute (None = manual)
+    result: Optional[str]             # Agent output after execution
+    error_message: Optional[str]      # Error details if failed
+    execution_attempts: int           # Retry tracking
+    chat_id: Optional[UUID]           # Link to originating conversation
+    parent_todo_id: Optional[UUID]    # For subtask hierarchies
+    task_metadata: dict               # JSONB for agent-specific parameters
     created_at: datetime
-    completed_at: Optional[datetime]
-    result: Optional[str]
+    updated_at: datetime
+    started_at: Optional[datetime]    # When execution began
+    completed_at: Optional[datetime]  # When finished
+    created_by: Optional[str]         # User/source identifier
 ```
 
+**API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/todos` | Create a new todo |
+| `GET` | `/api/todos` | List todos with filtering |
+| `GET` | `/api/todos/stats` | Get statistics |
+| `GET` | `/api/todos/{id}` | Get single todo |
+| `GET` | `/api/todos/{id}/subtasks` | Get subtasks |
+| `PATCH` | `/api/todos/{id}` | Update todo fields |
+| `DELETE` | `/api/todos/{id}` | Delete todo and subtasks |
+| `POST` | `/api/todos/{id}/execute` | Trigger execution |
+| `POST` | `/api/todos/{id}/cancel` | Cancel todo |
+
 **Storage:**
-- SQLite database in Docker volume for persistence
-- Survives container restarts
+- PostgreSQL in `tasks.todos` table (same database as messaging)
+- Survives container restarts via persistent volume
+
+**Key Features:**
+- Agent assignment for execution routing
+- Priority-based ordering
+- Scheduled execution support
+- Subtask hierarchies
+- Execution result/error tracking
+- JSONB metadata for flexible agent parameters
 
 ## Frontend Architecture
 
@@ -273,26 +324,41 @@ services:
 3. Backend TelegramPoller fetches updates via getUpdates (long-polling)
 4. Poller validates user against whitelist
 5. TelegramMessageHandler routes to OrchestratorAgent
-6. Orchestrator parses intent
-7. Orchestrator creates todo(s) if needed
-8. Orchestrator hands off to sub-agent(s) (future)
-9. Sub-agent executes via MCP tools (future)
-10. Results return to orchestrator
-11. Orchestrator formats response
-12. MessageHandler sends response via Telegram API (or MCP)
+6. Orchestrator calls Claude API with tool definitions
+7. If Claude returns tool_use blocks:
+   a. TodoToolHandler executes each tool call
+   b. Results sent back to Claude
+   c. Loop continues until Claude returns end_turn
+8. Orchestrator extracts final text response
+9. MessageHandler sends response via Telegram API
 ```
 
 ### Todo Execution Flow
 
+**Immediate (via tool call):**
 ```
-1. Orchestrator creates todo with assigned agent
-2. Todo stored in database (status: pending)
-3. Execution triggered (immediate or scheduled)
-4. Status updated to in_progress
-5. Sub-agent executes task via MCP
-6. Status updated to completed/failed
-7. User notified of result via Telegram
+1. User asks to create/execute a todo via Telegram
+2. Orchestrator receives tool_use from Claude
+3. TodoToolHandler calls TodoService
+4. Todo created/updated in database
+5. Result returned to Claude for response formatting
 ```
+
+**Background (via TodoExecutor):**
+```
+1. TodoExecutor polls database every N seconds
+2. Queries for pending todos (scheduled_at <= now)
+3. For each todo:
+   a. Status updated to in_progress
+   b. Routed to agent-specific handler
+   c. Status updated to completed/failed with result
+4. (Future) User notified of completion via Telegram MCP
+```
+
+**Configuration:**
+- `TODO_EXECUTOR_INTERVAL`: Check interval in seconds (default: 30)
+- `TODO_EXECUTOR_BATCH_SIZE`: Todos per cycle (default: 5)
+- `TODO_EXECUTOR_ENABLED`: Enable/disable executor (default: true)
 
 ## Security Considerations
 

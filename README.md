@@ -109,6 +109,32 @@ See `.env.example` for all available configuration options.
 | `/clear` | Clear messages in current conversation |
 | `/status` | Show session info and message count |
 
+### Todo Management
+
+The assistant can create and manage todos through natural conversation:
+
+```
+You: "Add a task to review the PR for the auth feature"
+Assistant: I've created a todo "Review PR for auth feature" assigned to the GitHub agent.
+
+You: "What's on my todo list?"
+Assistant: Here are your pending todos:
+  1. Review PR for auth feature (GitHub, priority: normal)
+  2. Send weekly report email (Email, priority: high)
+
+You: "Mark the first one as done"
+Assistant: Done! I've marked "Review PR for auth feature" as completed.
+```
+
+**Agent Assignment:** Todos can be assigned to specialized agents:
+- `github` - Repository and code tasks
+- `email` - Email operations
+- `calendar` - Scheduling and events
+- `obsidian` - Note-taking
+- `orchestrator` - General tasks
+
+**Background Execution:** A background executor periodically checks for pending todos and processes them through the appropriate agent.
+
 ### Telegram Configuration Options
 
 | Variable | Description | Default |
@@ -119,6 +145,14 @@ See `.env.example` for all available configuration options.
 | `TELEGRAM_ENABLED` | Enable/disable Telegram integration | true |
 | `TELEGRAM_MCP_HOST` | Telegram MCP server hostname | telegram-mcp |
 | `TELEGRAM_MCP_PORT` | Telegram MCP server port | 8080 |
+
+### Todo Executor Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TODO_EXECUTOR_INTERVAL` | Seconds between checking for pending todos | 30 |
+| `TODO_EXECUTOR_BATCH_SIZE` | Max todos to process per cycle | 5 |
+| `TODO_EXECUTOR_ENABLED` | Enable/disable background executor | true |
 
 ### Troubleshooting Telegram
 
