@@ -12,6 +12,18 @@ pipeline {
         DOCKER_REGISTRY = '192.168.50.35:5000'
         DOCKER_HOST = 'unix:///var/run/docker.sock'
 
+        // =====================================================================
+        // Credentials (injected from Jenkins credential store)
+        // =====================================================================
+        // Configure in: Jenkins -> Manage Jenkins -> Credentials -> System
+        //               -> Global credentials (unrestricted) -> Add Credentials
+        // Use Kind: "Secret text" for each credential
+        // =====================================================================
+        ANTHROPIC_API_KEY = credentials('anthropic-api-key')
+        TELEGRAM_BOT_TOKEN = credentials('telegram-bot-token')
+        TELEGRAM_ALLOWED_USER_IDS = credentials('telegram-allowed-user-ids')
+        POSTGRES_PASSWORD = credentials('postgres-db-password')
+
         // Image Names
         BACKEND_IMAGE_NAME = 'claude-assistant-backend'
         FRONTEND_IMAGE_NAME = 'claude-assistant-frontend'
