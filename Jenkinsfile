@@ -43,7 +43,7 @@ pipeline {
         TELEGRAM_MCP_PORT = '8081'
 
         // Database Configuration (uses existing PostgreSQL on Orange Pi)
-        POSTGRES_HOST = '192.168.86.80'
+        POSTGRES_HOST = '192.168.50.35'
         POSTGRES_PORT = '5432'
     }
 
@@ -242,7 +242,7 @@ pipeline {
                         -e LOG_LEVEL=INFO \
                         -e API_HOST=0.0.0.0 \
                         -e API_PORT=8000 \
-                        -e ALLOWED_HOSTS=localhost,127.0.0.1,192.168.86.80 \
+                        -e ALLOWED_HOSTS=localhost,127.0.0.1,192.168.50.35 \
                         -e ANTHROPIC_API_KEY=\${ANTHROPIC_API_KEY} \
                         -e CLAUDE_MODEL=\${CLAUDE_MODEL:-claude-sonnet-4-20250514} \
                         -e POSTGRES_DB=\${POSTGRES_DB:-claude_assistant_platform} \
@@ -284,7 +284,7 @@ pipeline {
                         --network ${DOCKER_NETWORK} \
                         --restart unless-stopped \
                         -p ${FRONTEND_PORT}:3000 \
-                        -e NEXT_PUBLIC_API_URL=http://192.168.86.80:${BACKEND_PORT} \
+                        -e NEXT_PUBLIC_API_URL=http://192.168.50.35:${BACKEND_PORT} \
                         -e NODE_ENV=production \
                         ${env.FRONTEND_IMAGE}
                     """
@@ -309,9 +309,9 @@ pipeline {
                     echo "============================================"
                     echo "Deployment Complete!"
                     echo "============================================"
-                    echo "Backend:      http://192.168.86.80:${BACKEND_PORT}"
-                    echo "Frontend:     http://192.168.86.80:${FRONTEND_PORT}"
-                    echo "Telegram MCP: http://192.168.86.80:${TELEGRAM_MCP_PORT}"
+                    echo "Backend:      http://192.168.50.35:${BACKEND_PORT}"
+                    echo "Frontend:     http://192.168.50.35:${FRONTEND_PORT}"
+                    echo "Telegram MCP: http://192.168.50.35:${TELEGRAM_MCP_PORT}"
                     echo "============================================"
                     echo ""
                     echo "Running Containers:"
