@@ -60,7 +60,7 @@ run:
 	@echo ""
 	@echo "Telegram: Will auto-start if TELEGRAM_BOT_TOKEN is set"
 	@echo "============================================"
-	$(UV) run uvicorn src.api.main:app --host $(HOST) --port $(PORT)
+	$(UV) run python run.py --host $(HOST) --port $(PORT)
 
 .PHONY: dev
 dev:
@@ -72,7 +72,7 @@ dev:
 	@echo ""
 	@echo "Telegram: Will auto-start if TELEGRAM_BOT_TOKEN is set"
 	@echo "============================================"
-	$(UV) run uvicorn src.api.main:app --host $(HOST) --port $(PORT) --reload
+	$(UV) run python run.py --host $(HOST) --port $(PORT) --reload
 
 # -----------------------------------------------------------------------------
 # Test & Lint targets

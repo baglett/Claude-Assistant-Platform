@@ -51,7 +51,7 @@ lock:
 # Run targets
 # -----------------------------------------------------------------------------
 .PHONY: run
-run:
+run: install
 	@echo "============================================"
 	@echo "Starting Telegram MCP Server"
 	@echo "============================================"
@@ -61,7 +61,7 @@ run:
 	$(UV) run python -m src.server
 
 .PHONY: dev
-dev:
+dev: install
 	@echo "============================================"
 	@echo "Starting Telegram MCP Server (DEV)"
 	@echo "============================================"
