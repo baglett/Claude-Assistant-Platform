@@ -22,6 +22,7 @@ pipeline {
         ANTHROPIC_API_KEY = credentials('anthropic-api-key')
         TELEGRAM_BOT_TOKEN = credentials('telegram-bot-token')
         TELEGRAM_ALLOWED_USER_IDS = credentials('telegram-allowed-user-ids')
+        POSTGRES_USER = credentials('postgres-db-user')
         POSTGRES_PASSWORD = credentials('postgres-db-password')
 
         // Image Names
