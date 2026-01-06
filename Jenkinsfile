@@ -9,7 +9,7 @@ pipeline {
 
     environment {
         // Docker Registry Configuration
-        DOCKER_REGISTRY = '192.168.86.80:5000'
+        DOCKER_REGISTRY = '192.168.50.35:5000'
         DOCKER_HOST = 'unix:///var/run/docker.sock'
 
         // Image Names
