@@ -1,7 +1,7 @@
 # =============================================================================
 # Claude Assistant Platform - Backend Dockerfile
 # =============================================================================
-# Python 3.14 FastAPI Application
+# Python 3.14 FastAPI Application using uv for package management
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -9,25 +9,31 @@
 # -----------------------------------------------------------------------------
 FROM python:3.14-slim AS builder
 
+# Set working directory
+WORKDIR /app
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PYTHONUNBUFFERED=1
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Install uv for package management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+# Copy project files needed for dependency installation
+COPY pyproject.toml uv.lock ./
+COPY README.md ./
+
+# Create virtual environment and install dependencies
+RUN uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    uv pip install --no-cache .
 
 # -----------------------------------------------------------------------------
 # Runtime stage
