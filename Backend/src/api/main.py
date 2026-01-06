@@ -38,6 +38,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Silence noisy third-party loggers
+# httpx logs every HTTP request at INFO level (including polling every 30s)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 
 # -----------------------------------------------------------------------------
 # Lifespan Management
@@ -108,11 +113,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.telegram_is_configured and orchestrator:
         logger.info("Initializing Telegram integration...")
 
-        # Create the message handler
+        # Create the message handler (uses direct Telegram API for replies)
+        # Note: Agent-initiated messages use MCP tools separately
         telegram_handler = TelegramMessageHandler(
             orchestrator=orchestrator,
             bot_token=settings.telegram_bot_token,
-            mcp_url=settings.telegram_mcp_url if settings.telegram_mcp_host else None,
         )
 
         # Create the poller
