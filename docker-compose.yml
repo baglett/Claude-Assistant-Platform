@@ -83,11 +83,11 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # Telegram MCP Server
+  # Telegram MCP Server (for agent-initiated messages)
   # ---------------------------------------------------------------------------
   telegram-mcp:
     build:
-      context: ./docker/telegram-mcp
+      context: ./MCPS/Telegram
       dockerfile: Dockerfile
     container_name: claude-assistant-telegram-mcp
     environment:

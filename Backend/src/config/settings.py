@@ -149,6 +149,22 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Todo Executor Settings
+    # -------------------------------------------------------------------------
+    todo_executor_interval: int = Field(
+        default=30,
+        description="Interval in seconds between todo execution checks"
+    )
+    todo_executor_batch_size: int = Field(
+        default=5,
+        description="Maximum number of todos to process per execution cycle"
+    )
+    todo_executor_enabled: bool = Field(
+        default=True,
+        description="Enable/disable the background todo executor"
+    )
+
+    # -------------------------------------------------------------------------
     # Model Configuration
     # -------------------------------------------------------------------------
     model_config = SettingsConfigDict(
@@ -164,13 +180,17 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """
-        Construct the database URL from individual components.
+        Construct the database URL for psycopg async driver.
+
+        Uses the psycopg3 dialect for SQLAlchemy async operations.
+        The psycopg driver provides better performance and native
+        async support compared to asyncpg.
 
         Returns:
-            PostgreSQL connection URL string.
+            PostgreSQL connection URL using psycopg dialect.
         """
         return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 

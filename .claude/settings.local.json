@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"Backend/src\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(uv remove:*)",
+      "Bash(Set-Location \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\Backend\")",
+      "Bash(uv run python:*)",
+      "WebSearch",
+      "WebFetch(domain:www.anthropic.com)",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}
