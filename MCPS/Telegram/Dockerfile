@@ -22,8 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
-# Copy project files
-COPY pyproject.toml ./
+# Copy project files (README.md required by hatchling for package metadata)
+COPY pyproject.toml README.md ./
 
 # Create virtual environment and install dependencies
 RUN uv venv /opt/venv && \
