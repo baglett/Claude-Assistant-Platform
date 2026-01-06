@@ -11,15 +11,18 @@ This server exposes MCP tools for:
 
 The server runs as a standalone HTTP service and can be called by the
 orchestrator or other components to interact with Telegram.
+
+Note:
+    This MCP server is for agent-initiated (proactive) messages only.
+    User replies are handled directly by the backend's TelegramMessageHandler
+    using the Telegram Bot API for lower latency.
 """
 
 import logging
-import os
 from typing import Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict

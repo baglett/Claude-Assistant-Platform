@@ -1,7 +1,7 @@
 # =============================================================================
 # Telegram MCP Server - Project Configuration
 # =============================================================================
-# MCP server providing Telegram Bot API tools for sending messages
+# MCP server providing Telegram Bot API tools for agent-initiated messages
 # =============================================================================
 
 [project]

@@ -5,7 +5,10 @@
 Message handler for routing Telegram messages to the orchestrator.
 
 This module bridges incoming Telegram messages with the orchestrator agent
-and sends responses back via the Telegram API or MCP server.
+and sends responses back via the Telegram Bot API directly.
+
+For agent-initiated (proactive) messages, use the Telegram MCP server tools
+instead - this handler is strictly for responding to user messages.
 
 Session management allows users to create fresh conversation contexts
 via the /new command.
@@ -49,15 +52,18 @@ class TelegramMessageHandler:
     - Managing Telegram-to-database session mapping
     - Sending typing indicators to show the bot is working
     - Routing messages to the orchestrator for processing
-    - Sending responses back via the Telegram API (or MCP server)
+    - Sending responses back via the Telegram Bot API
     - Handling bot commands (/new, /clear, /help, /start)
+
+    Note:
+        Agent-initiated messages (proactive notifications) should use the
+        Telegram MCP server tools, not this handler. This handler is for
+        responding to user-initiated conversations only.
 
     Attributes:
         orchestrator: The OrchestratorAgent instance for processing messages.
         session_service: Service for managing Telegram session mappings.
         bot_token: Telegram bot token for sending messages.
-        mcp_url: URL of the Telegram MCP server (optional).
-        use_mcp: Whether to use MCP server for sending messages.
         _client: Async HTTP client for API requests.
     """
 
@@ -65,7 +71,6 @@ class TelegramMessageHandler:
         self,
         orchestrator: OrchestratorAgent,
         bot_token: str,
-        mcp_url: Optional[str] = None,
         session_service: Optional[TelegramSessionService] = None,
     ) -> None:
         """
@@ -73,23 +78,17 @@ class TelegramMessageHandler:
 
         Args:
             orchestrator: The OrchestratorAgent to route messages to.
-            bot_token: Telegram bot token for sending messages directly.
-            mcp_url: URL of the Telegram MCP server (optional).
+            bot_token: Telegram bot token for sending messages.
             session_service: Optional TelegramSessionService instance.
         """
         self.orchestrator = orchestrator
         self.bot_token = bot_token
-        self.mcp_url = mcp_url
-        self.use_mcp = mcp_url is not None
         self.session_service = session_service or get_telegram_session_service()
 
         self._client: Optional[httpx.AsyncClient] = None
         self._api_base_url = f"https://api.telegram.org/bot{bot_token}"
 
-        logger.info(
-            f"TelegramMessageHandler initialized. "
-            f"Using MCP: {self.use_mcp}"
-        )
+        logger.info("TelegramMessageHandler initialized")
 
     # -------------------------------------------------------------------------
     # HTTP Client Management
@@ -180,69 +179,7 @@ class TelegramMessageHandler:
             return False
 
     # -------------------------------------------------------------------------
-    # Telegram API Methods (via MCP)
-    # -------------------------------------------------------------------------
-    async def _send_message_via_mcp(
-        self,
-        chat_id: int,
-        text: str,
-        reply_to_message_id: Optional[int] = None,
-        parse_mode: Optional[str] = None,
-    ) -> bool:
-        """
-        Send a message via the Telegram MCP server.
-
-        Args:
-            chat_id: The chat to send the message to.
-            text: The message text.
-            reply_to_message_id: Message ID to reply to (optional).
-            parse_mode: Parse mode for formatting (optional).
-
-        Returns:
-            True if the message was sent successfully.
-        """
-        if not self.mcp_url:
-            logger.error("MCP URL not configured")
-            return False
-
-        client = await self._get_client()
-        url = f"{self.mcp_url}/tools/send_message"
-
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-        }
-        if reply_to_message_id:
-            payload["reply_to_message_id"] = reply_to_message_id
-        if parse_mode:
-            payload["parse_mode"] = parse_mode
-
-        try:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-
-            data = response.json()
-            if not data.get("success"):
-                logger.error(f"MCP send_message failed: {data.get('error')}")
-                return False
-
-            logger.debug(f"Message sent via MCP to chat {chat_id}")
-            return True
-
-        except httpx.ConnectError:
-            logger.warning(
-                "Could not connect to MCP server, falling back to direct API"
-            )
-            return await self._send_message_direct(
-                chat_id, text, reply_to_message_id, parse_mode
-            )
-
-        except Exception as e:
-            logger.error(f"Error sending message via MCP: {e}")
-            return False
-
-    # -------------------------------------------------------------------------
-    # Message Sending (Unified)
+    # Message Sending
     # -------------------------------------------------------------------------
     async def send_message(
         self,
@@ -254,8 +191,7 @@ class TelegramMessageHandler:
         """
         Send a message to a Telegram chat.
 
-        Automatically splits long messages and chooses between direct API
-        and MCP server based on configuration.
+        Automatically splits long messages to fit Telegram's 4096 char limit.
 
         Args:
             chat_id: The chat to send the message to.
@@ -274,14 +210,9 @@ class TelegramMessageHandler:
             # Only reply to original message for first part
             reply_id = reply_to_message_id if i == 0 else None
 
-            if self.use_mcp:
-                part_success = await self._send_message_via_mcp(
-                    chat_id, part, reply_id, parse_mode
-                )
-            else:
-                part_success = await self._send_message_direct(
-                    chat_id, part, reply_id, parse_mode
-                )
+            part_success = await self._send_message_direct(
+                chat_id, part, reply_id, parse_mode
+            )
 
             if not part_success:
                 success = False

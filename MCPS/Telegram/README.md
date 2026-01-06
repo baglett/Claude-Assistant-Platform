@@ -4,7 +4,16 @@ MCP (Model Context Protocol) server providing Telegram Bot API tools for the Cla
 
 ## Overview
 
-This service exposes Telegram Bot API functionality as MCP tools that can be called by the orchestrator agent. It also provides direct HTTP endpoints for components that need to send messages without going through MCP.
+This service exposes Telegram Bot API functionality as MCP tools that can be called by agents for **proactive messaging** - sending messages initiated by the system rather than in response to user input.
+
+**Note:** User replies (responses to incoming messages) are handled directly by the backend's `TelegramMessageHandler` using the Telegram Bot API for lower latency. This MCP server is specifically for agent-initiated notifications, reminders, and alerts.
+
+## Use Cases
+
+- **Scheduled reminders**: "Hey, your todo is due!"
+- **Task completion notifications**: "I finished processing your request"
+- **Proactive alerts**: "PR #42 was merged - want me to deploy?"
+- **Daily summaries**: "Here's what happened today..."
 
 ## Features
 
@@ -82,4 +91,14 @@ This service is designed to run in Docker as part of the Claude Assistant Platfo
 
 ```powershell
 docker-compose up telegram-mcp
+```
+
+## Architecture
+
+```
+User Message Flow (Low Latency):
+  Telegram → Poller → MessageHandler → Direct API → Telegram
+
+Agent-Initiated Flow (via MCP):
+  Agent decides to notify → MCP tool call → This server → Telegram
 ```
