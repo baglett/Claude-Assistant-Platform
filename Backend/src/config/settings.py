@@ -36,7 +36,8 @@ class Settings(BaseSettings):
         postgres_password: PostgreSQL password.
         postgres_host: PostgreSQL host address.
         postgres_port: PostgreSQL port number.
-        telegram_bot_token: Telegram bot token from @BotFather.
+        telegram_bot_token: Production Telegram bot token from @BotFather.
+        telegram_dev_bot_token: Development Telegram bot token (used when APP_ENV=development).
         telegram_allowed_user_ids: Comma-separated list of allowed Telegram user IDs.
         telegram_polling_timeout: Long-polling timeout for Telegram API.
         telegram_enabled: Enable/disable Telegram bot integration.
@@ -121,7 +122,11 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     telegram_bot_token: str = Field(
         default="",
-        description="Telegram bot token from @BotFather"
+        description="Production Telegram bot token from @BotFather"
+    )
+    telegram_dev_bot_token: str = Field(
+        default="",
+        description="Development Telegram bot token (used when APP_ENV=development)"
     )
     telegram_allowed_user_ids: str = Field(
         default="",
@@ -231,14 +236,47 @@ class Settings(BaseSettings):
         return f"http://{self.telegram_mcp_host}:{self.telegram_mcp_port}"
 
     @property
+    def telegram_active_bot_token(self) -> str:
+        """
+        Get the appropriate Telegram bot token based on environment.
+
+        In development mode, uses the dev bot token if available,
+        otherwise falls back to the production token.
+        In production/staging, always uses the production token.
+
+        This allows running a local dev instance without conflicting
+        with the production bot's polling.
+
+        Returns:
+            The bot token to use for the current environment.
+        """
+        if self.app_env == "development" and self.telegram_dev_bot_token:
+            return self.telegram_dev_bot_token
+        return self.telegram_bot_token
+
+    @property
     def telegram_is_configured(self) -> bool:
         """
         Check if Telegram bot is properly configured.
 
         Returns:
-            True if bot token is set and enabled.
+            True if an active bot token is set and Telegram is enabled.
         """
-        return bool(self.telegram_bot_token and self.telegram_enabled)
+        return bool(self.telegram_active_bot_token and self.telegram_enabled)
+
+    @property
+    def telegram_is_dev_bot(self) -> bool:
+        """
+        Check if currently using the development bot.
+
+        Returns:
+            True if using the dev bot token, False if using production.
+        """
+        return (
+            self.app_env == "development"
+            and bool(self.telegram_dev_bot_token)
+            and self.telegram_active_bot_token == self.telegram_dev_bot_token
+        )
 
     # -------------------------------------------------------------------------
     # Validators

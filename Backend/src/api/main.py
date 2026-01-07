@@ -111,18 +111,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize Telegram Poller
     # -------------------------------------------------------------------------
     if settings.telegram_is_configured and orchestrator:
-        logger.info("Initializing Telegram integration...")
+        # Log which bot is being used (dev vs prod)
+        bot_mode = "DEVELOPMENT" if settings.telegram_is_dev_bot else "PRODUCTION"
+        logger.info(f"Initializing Telegram integration ({bot_mode} bot)...")
+
+        # Get the active bot token (dev or prod based on APP_ENV)
+        active_bot_token = settings.telegram_active_bot_token
 
         # Create the message handler (uses direct Telegram API for replies)
         # Note: Agent-initiated messages use MCP tools separately
         telegram_handler = TelegramMessageHandler(
             orchestrator=orchestrator,
-            bot_token=settings.telegram_bot_token,
+            bot_token=active_bot_token,
         )
 
         # Create the poller
         telegram_poller = TelegramPoller(
-            bot_token=settings.telegram_bot_token,
+            bot_token=active_bot_token,
             allowed_user_ids=settings.telegram_allowed_user_ids_list,
             polling_timeout=settings.telegram_polling_timeout,
             message_handler=telegram_handler.handle_message,
@@ -137,15 +142,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
             app.state.telegram_poller = telegram_poller
             app.state.telegram_handler = telegram_handler
-            logger.info("Telegram poller started as background task")
+            logger.info(f"Telegram poller started ({bot_mode} bot)")
         else:
             logger.error(
                 "Failed to verify Telegram bot token. "
                 "Telegram integration disabled."
             )
-    elif settings.telegram_enabled and not settings.telegram_bot_token:
+    elif settings.telegram_enabled and not settings.telegram_active_bot_token:
         logger.warning(
-            "TELEGRAM_BOT_TOKEN not set. Telegram integration disabled."
+            "No Telegram bot token configured. "
+            "Set TELEGRAM_BOT_TOKEN (prod) or TELEGRAM_DEV_BOT_TOKEN (dev). "
+            "Telegram integration disabled."
         )
     elif settings.telegram_enabled and not orchestrator:
         logger.warning(
