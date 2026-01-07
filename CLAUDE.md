@@ -60,12 +60,46 @@ This is a self-hosted AI assistant platform using the Claude Agents SDK. The sys
 Required environment variables (see `.env.example`):
 
 - `ANTHROPIC_API_KEY` - Claude API access (required)
-- `TELEGRAM_BOT_TOKEN` - Telegram bot authentication (required for Telegram)
+- `TELEGRAM_BOT_TOKEN` - Production Telegram bot token (required for deployed instances)
+- `TELEGRAM_DEV_BOT_TOKEN` - Development Telegram bot token (optional, for local dev)
 - `TELEGRAM_ALLOWED_USER_IDS` - Comma-separated whitelist of user IDs
 - `TELEGRAM_POLLING_TIMEOUT` - Long-polling timeout (default: 30)
 - `TELEGRAM_ENABLED` - Enable/disable Telegram (default: true)
 - `GITHUB_TOKEN` - GitHub MCP access (optional)
 - Additional MCP-specific credentials as needed
+
+## Development vs Production Telegram Bots
+
+The platform supports separate development and production Telegram bots to prevent polling conflicts when running locally alongside a deployed production instance.
+
+### Why Two Bots?
+
+Telegram only allows one client to poll updates for a bot at a time. If you run locally while production is deployed, both instances will fight for updates, causing messages to be randomly delivered to either instance.
+
+### Setup
+
+1. **Create two bots via @BotFather:**
+   - Production bot (e.g., `MyAssistantBot`)
+   - Development bot (e.g., `MyAssistantDevBot`)
+
+2. **Configure your `.env`:**
+   ```env
+   APP_ENV=development
+   TELEGRAM_BOT_TOKEN=<production-bot-token>
+   TELEGRAM_DEV_BOT_TOKEN=<dev-bot-token>
+   ```
+
+3. **How it works:**
+   - When `APP_ENV=development` and `TELEGRAM_DEV_BOT_TOKEN` is set, the dev bot is used
+   - When `APP_ENV=production` or `APP_ENV=staging`, the production bot is always used
+   - If `TELEGRAM_DEV_BOT_TOKEN` is not set, falls back to production token
+
+### Running Local Frontend Against Production Bot
+
+To test the local frontend with the production bot (while backend uses dev bot):
+- The frontend doesn't directly interact with Telegram
+- Frontend connects to the backend API which uses the appropriate bot based on `APP_ENV`
+- To use prod bot locally, set `APP_ENV=production` or leave `TELEGRAM_DEV_BOT_TOKEN` empty
 
 ## Dependency Management (uv)
 
@@ -229,6 +263,20 @@ uv run pytest --cov=src
 - Integrated executor lifecycle in `Backend/src/api/main.py`:
   - Starts as background task on startup
   - Graceful shutdown on application stop
+
+#### Development/Production Bot Separation
+
+**Settings Updates:**
+- Added `telegram_dev_bot_token` setting for development bot token
+- Added `telegram_active_bot_token` computed property that selects appropriate token based on `APP_ENV`
+- Added `telegram_is_dev_bot` computed property to check which bot is active
+- Updated `telegram_is_configured` to check active token instead of production token
+- Updated `Backend/src/api/main.py` to use active bot token with logging of bot mode
+
+**Configuration:**
+- Updated `.env.example` with comprehensive dev/prod bot documentation
+- Added `TELEGRAM_DEV_BOT_TOKEN` environment variable
+- Updated `CLAUDE.md` with dev bot setup instructions
 
 #### Telegram Integration (Phase 1)
 
