@@ -4,7 +4,7 @@ This guide walks you through setting up a Siri Shortcut to quickly add todo item
 
 ## Overview
 
-**Goal:** Say "Hey Siri, add to my todo list" and dictate a task that gets sent to your Telegram bot with an `[APPLE-WATCH]` prefix for quick processing.
+**Goal:** Say "Hey Siri, add tasking" and dictate a task that gets sent to your Telegram bot with an `[APPLE-WATCH]` prefix for quick processing.
 
 **Flow:**
 ```
