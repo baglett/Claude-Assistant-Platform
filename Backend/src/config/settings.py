@@ -154,6 +154,26 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Motion MCP Server Settings
+    # -------------------------------------------------------------------------
+    motion_api_key: str = Field(
+        default="",
+        description="Motion API key for task management"
+    )
+    motion_mcp_host: str = Field(
+        default="motion-mcp",
+        description="Hostname of the Motion MCP server"
+    )
+    motion_mcp_port: int = Field(
+        default=8081,
+        description="Port of the Motion MCP server"
+    )
+    motion_enabled: bool = Field(
+        default=True,
+        description="Enable/disable Motion integration"
+    )
+
+    # -------------------------------------------------------------------------
     # Todo Executor Settings
     # -------------------------------------------------------------------------
     todo_executor_interval: int = Field(
@@ -277,6 +297,26 @@ class Settings(BaseSettings):
             and bool(self.telegram_dev_bot_token)
             and self.telegram_active_bot_token == self.telegram_dev_bot_token
         )
+
+    @property
+    def motion_mcp_url(self) -> str:
+        """
+        Construct the Motion MCP server URL.
+
+        Returns:
+            Full URL to the Motion MCP server.
+        """
+        return f"http://{self.motion_mcp_host}:{self.motion_mcp_port}"
+
+    @property
+    def motion_is_configured(self) -> bool:
+        """
+        Check if Motion integration is properly configured.
+
+        Returns:
+            True if Motion API key is set and Motion is enabled.
+        """
+        return bool(self.motion_api_key and self.motion_enabled)
 
     # -------------------------------------------------------------------------
     # Validators
