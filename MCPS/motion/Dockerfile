@@ -15,8 +15,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Copy dependency files and README (required by hatchling for package metadata)
+COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies
 RUN uv sync --frozen --no-dev
