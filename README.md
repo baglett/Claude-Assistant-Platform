@@ -169,6 +169,86 @@ Assistant: Done! I've marked "Review PR for auth feature" as completed.
 - The bot only responds to text messages (no images/stickers yet)
 - Unauthorized users are logged but receive no response
 
+## Jenkins CI/CD Deployment
+
+The platform includes a Jenkinsfile for automated deployment to your infrastructure.
+
+### Jenkins Credentials Configuration
+
+Before running the pipeline, configure the following credentials in Jenkins:
+
+1. **Navigate to credentials:**
+   - Jenkins → Manage Jenkins → Credentials → System → Global credentials (unrestricted)
+
+2. **Add each credential as "Secret text":**
+
+   | Credential ID | Description | How to Obtain |
+   |---------------|-------------|---------------|
+   | `anthropic-api-key` | Anthropic API key for Claude | [console.anthropic.com](https://console.anthropic.com/) |
+   | `telegram-bot-token` | Production Telegram bot token | Create via [@BotFather](https://t.me/botfather) |
+   | `telegram-allowed-user-ids` | Comma-separated Telegram user IDs | Get from [@userinfobot](https://t.me/userinfobot) |
+   | `postgres-db-user` | PostgreSQL username | Your database configuration |
+   | `postgres-db-password` | PostgreSQL password | Your database configuration |
+   | `motion-api-key` | Motion API key for task management | [app.usemotion.com/web/settings/api](https://app.usemotion.com/web/settings/api) |
+
+3. **Adding a credential step-by-step:**
+   - Click "Add Credentials"
+   - Kind: **Secret text**
+   - Scope: **Global**
+   - Secret: *paste your secret value*
+   - ID: *use the exact ID from the table above*
+   - Description: *optional but helpful*
+   - Click "Create"
+
+### Port Configuration
+
+The pipeline deploys containers with the following port mappings:
+
+| Service | Internal Port | External Port |
+|---------|---------------|---------------|
+| Backend | 8000 | 8000 |
+| Frontend | 3000 | 3000 |
+| Telegram MCP | 8080 | 8081 |
+| Motion MCP | 8081 | 8082 |
+
+### Pipeline Stages
+
+1. **Prepare** - Determine version from git commit hash
+2. **Verify Docker CLI** - Confirm Docker is available
+3. **Create Docker Network** - Create `claude-assistant-network` if needed
+4. **Build Docker Images** - Build all images in parallel (arm64)
+5. **Push Docker Images** - Push to local registry
+6. **Stop and Remove Containers** - Clean up existing containers
+7. **Start Telegram MCP** - Start Telegram MCP server
+8. **Start Motion MCP** - Start Motion MCP server
+9. **Start Backend** - Start main backend API
+10. **Start Frontend** - Start Next.js frontend
+11. **Verify Deployment** - Display deployment status
+
+### Running the Pipeline
+
+```bash
+# Trigger manually from Jenkins UI
+# Or configure webhook for automatic deployment on push
+
+# The pipeline expects:
+# - Docker registry at 192.168.50.35:5000
+# - PostgreSQL at 192.168.50.35:5432
+# - ARM64 architecture (Orange Pi / Raspberry Pi)
+```
+
+### Customizing Deployment
+
+Edit the `Jenkinsfile` environment variables to match your infrastructure:
+
+```groovy
+environment {
+    DOCKER_REGISTRY = '192.168.50.35:5000'  // Your registry
+    POSTGRES_HOST = '192.168.50.35'          // Your DB host
+    POSTGRES_PORT = '5432'                   // Your DB port
+}
+```
+
 ## Project Structure
 
 ```
@@ -195,11 +275,20 @@ claude-assistant-platform/
 │   ├── tests/                # Test suite
 │   ├── pyproject.toml        # Python dependencies (uv)
 │   └── Dockerfile
-├── docker/                   # Docker configurations
-│   └── telegram-mcp/         # Telegram MCP server
-│       ├── src/server.py     # FastMCP server
+├── MCPS/                     # MCP (Model Context Protocol) servers
+│   ├── telegram/             # Telegram MCP server
+│   │   ├── src/server.py     # FastMCP server for Telegram
+│   │   ├── pyproject.toml
+│   │   └── Dockerfile
+│   └── motion/               # Motion MCP server
+│       ├── src/
+│       │   ├── server.py     # FastMCP server for Motion API
+│       │   ├── client.py     # Motion API client with rate limiting
+│       │   ├── rate_limiter.py  # Rate limit enforcement
+│       │   └── models/       # Pydantic models for Motion API
 │       ├── pyproject.toml
 │       └── Dockerfile
+├── Jenkinsfile               # CI/CD pipeline configuration
 ├── docker-compose.yml        # Container orchestration
 └── .env.example              # Environment template
 ```
@@ -208,6 +297,7 @@ claude-assistant-platform/
 
 - [Architecture](./ARCHITECTURE.md) - System design and component overview
 - [Requirements](./REQUIREMENTS.md) - Functional and technical requirements
+- [Deployment Reference](./DEPLOYMENT.md) - Ports, containers, credentials, and infrastructure
 - [Development Guide](./CLAUDE.md) - Development notes and AI-assisted changelog
 
 ## License
