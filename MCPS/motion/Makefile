@@ -4,6 +4,10 @@
 # Common development tasks for the Motion MCP server
 # =============================================================================
 
+# Load environment variables from root .env file
+-include ../../.env
+export
+
 .PHONY: help install dev run lint format test clean build
 
 # Default target

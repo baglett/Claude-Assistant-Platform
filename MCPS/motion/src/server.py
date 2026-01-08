@@ -740,6 +740,207 @@ async def get_rate_limit() -> dict[str, Any]:
     return await motion_get_rate_limit_status()
 
 
+# -----------------------------------------------------------------------------
+# HTTP Tool Endpoints (for agent access)
+# -----------------------------------------------------------------------------
+class ListTasksRequest(BaseModel):
+    """Request model for listing tasks."""
+
+    workspace_id: Optional[str] = None
+    project_id: Optional[str] = None
+    assignee_id: Optional[str] = None
+    status: Optional[str] = None
+
+
+class GetTaskRequest(BaseModel):
+    """Request model for getting a single task."""
+
+    task_id: str
+
+
+class DeleteTaskRequest(BaseModel):
+    """Request model for deleting a task."""
+
+    task_id: str
+
+
+class MoveTaskRequest(BaseModel):
+    """Request model for moving a task."""
+
+    task_id: str
+    workspace_id: str
+    project_id: Optional[str] = None
+
+
+class UnassignTaskRequest(BaseModel):
+    """Request model for unassigning a task."""
+
+    task_id: str
+
+
+class TaskUpdateHttpRequest(BaseModel):
+    """Request model for updating a task via HTTP."""
+
+    task_id: str
+    name: Optional[str] = None
+    due_date: Optional[str] = None
+    duration: Optional[int] = None
+    project_id: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    assignee_id: Optional[str] = None
+    labels: Optional[list[str]] = None
+
+
+class ListProjectsRequest(BaseModel):
+    """Request model for listing projects."""
+
+    workspace_id: Optional[str] = None
+
+
+class GetProjectRequest(BaseModel):
+    """Request model for getting a single project."""
+
+    project_id: str
+
+
+class ProjectCreateRequest(BaseModel):
+    """Request model for creating a project."""
+
+    name: str
+    workspace_id: str
+    description: Optional[str] = None
+    status: Optional[str] = None
+    labels: Optional[list[str]] = None
+
+
+class ListUsersRequest(BaseModel):
+    """Request model for listing users."""
+
+    workspace_id: Optional[str] = None
+
+
+@fastapi_app.post("/tools/motion_list_tasks")
+async def http_list_tasks(request: ListTasksRequest) -> dict[str, Any]:
+    """HTTP endpoint for listing tasks."""
+    return await motion_list_tasks(
+        workspace_id=request.workspace_id,
+        project_id=request.project_id,
+        assignee_id=request.assignee_id,
+        status=request.status,
+    )
+
+
+@fastapi_app.post("/tools/motion_get_task")
+async def http_get_task(request: GetTaskRequest) -> dict[str, Any]:
+    """HTTP endpoint for getting a task."""
+    return await motion_get_task(task_id=request.task_id)
+
+
+@fastapi_app.post("/tools/motion_create_task")
+async def http_create_task(request: TaskCreateRequest) -> dict[str, Any]:
+    """HTTP endpoint for creating a task."""
+    return await motion_create_task(
+        name=request.name,
+        workspace_id=request.workspace_id,
+        due_date=request.due_date,
+        duration=request.duration,
+        project_id=request.project_id,
+        description=request.description,
+        priority=request.priority,
+        assignee_id=request.assignee_id,
+        labels=request.labels,
+    )
+
+
+@fastapi_app.post("/tools/motion_update_task")
+async def http_update_task(request: TaskUpdateHttpRequest) -> dict[str, Any]:
+    """HTTP endpoint for updating a task."""
+    return await motion_update_task(
+        task_id=request.task_id,
+        name=request.name,
+        due_date=request.due_date,
+        duration=request.duration,
+        project_id=request.project_id,
+        description=request.description,
+        priority=request.priority,
+        status=request.status,
+        assignee_id=request.assignee_id,
+        labels=request.labels,
+    )
+
+
+@fastapi_app.post("/tools/motion_delete_task")
+async def http_delete_task(request: DeleteTaskRequest) -> dict[str, Any]:
+    """HTTP endpoint for deleting a task."""
+    return await motion_delete_task(task_id=request.task_id)
+
+
+@fastapi_app.post("/tools/motion_move_task")
+async def http_move_task(request: MoveTaskRequest) -> dict[str, Any]:
+    """HTTP endpoint for moving a task."""
+    return await motion_move_task(
+        task_id=request.task_id,
+        workspace_id=request.workspace_id,
+        project_id=request.project_id,
+    )
+
+
+@fastapi_app.post("/tools/motion_unassign_task")
+async def http_unassign_task(request: UnassignTaskRequest) -> dict[str, Any]:
+    """HTTP endpoint for unassigning a task."""
+    return await motion_unassign_task(task_id=request.task_id)
+
+
+@fastapi_app.post("/tools/motion_list_projects")
+async def http_list_projects(request: ListProjectsRequest) -> dict[str, Any]:
+    """HTTP endpoint for listing projects."""
+    return await motion_list_projects(workspace_id=request.workspace_id)
+
+
+@fastapi_app.post("/tools/motion_get_project")
+async def http_get_project(request: GetProjectRequest) -> dict[str, Any]:
+    """HTTP endpoint for getting a project."""
+    return await motion_get_project(project_id=request.project_id)
+
+
+@fastapi_app.post("/tools/motion_create_project")
+async def http_create_project(request: ProjectCreateRequest) -> dict[str, Any]:
+    """HTTP endpoint for creating a project."""
+    return await motion_create_project(
+        name=request.name,
+        workspace_id=request.workspace_id,
+        description=request.description,
+        status=request.status,
+        labels=request.labels,
+    )
+
+
+@fastapi_app.post("/tools/motion_list_workspaces")
+async def http_list_workspaces() -> dict[str, Any]:
+    """HTTP endpoint for listing workspaces."""
+    return await motion_list_workspaces()
+
+
+@fastapi_app.post("/tools/motion_list_users")
+async def http_list_users(request: ListUsersRequest) -> dict[str, Any]:
+    """HTTP endpoint for listing users."""
+    return await motion_list_users(workspace_id=request.workspace_id)
+
+
+@fastapi_app.post("/tools/motion_get_current_user")
+async def http_get_current_user() -> dict[str, Any]:
+    """HTTP endpoint for getting current user."""
+    return await motion_get_current_user()
+
+
+@fastapi_app.post("/tools/motion_get_rate_limit_status")
+async def http_get_rate_limit_status() -> dict[str, Any]:
+    """HTTP endpoint for getting rate limit status."""
+    return await motion_get_rate_limit_status()
+
+
 @fastapi_app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Cleanup on shutdown."""
