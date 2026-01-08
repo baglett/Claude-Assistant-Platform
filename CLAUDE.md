@@ -329,6 +329,54 @@ uv run pytest --cov=src
   - Backend depends on telegram-mcp service health
 - Updated `.env.example` with comprehensive Telegram configuration
 
+#### Obsidian MCP Server
+
+**Research & Design:**
+- Evaluated existing MCP implementations:
+  - No official Obsidian MCP exists
+  - Reviewed community implementations: MarkusPfundstein/mcp-obsidian (Python), cyanheads/obsidian-mcp-server (TypeScript)
+  - Selected Obsidian Local REST API plugin (v3.2.0) as integration point
+- Analyzed Local REST API capabilities:
+  - Vault file operations (CRUD), periodic notes, search, commands
+  - HTTPS (27124) with self-signed cert or HTTP (27123)
+  - Bearer token authentication
+
+**MCP Server Implementation:**
+- Created `MCPS/obsidian/src/server.py` - Full MCP server with 15 tools:
+  - **Note Operations**: `read_note`, `create_note`, `update_note`, `delete_note`
+  - **Vault Navigation**: `list_vault_files`, `get_active_file`, `open_file`
+  - **Search**: `search_vault` (text search), `search_dataview` (DQL queries)
+  - **Periodic Notes**: `get_daily_note`, `get_weekly_note`, `append_to_daily_note`
+  - **Commands**: `list_commands`, `execute_command`
+  - **System**: `check_connection`
+- Implemented `ObsidianClient` class:
+  - Async HTTP client using httpx
+  - SSL handling for self-signed certificates
+  - Full API coverage for Local REST API endpoints
+  - URL encoding for file paths
+- Dual server setup: FastMCP tools + FastAPI HTTP endpoints
+
+**Project Structure:**
+- Created `MCPS/obsidian/pyproject.toml` - Project config with dependencies
+- Created `MCPS/obsidian/Dockerfile` - Multi-stage build matching Telegram pattern
+- Created `MCPS/obsidian/Makefile` - Build/run targets (install, run, dev, lint, format)
+- Created `MCPS/obsidian/README.md` - Comprehensive documentation with:
+  - Plugin setup instructions
+  - Environment variable reference
+  - Tool usage examples
+  - Docker deployment guide
+  - Troubleshooting section
+
+**Configuration Updates:**
+- Updated `docker-compose.yml`:
+  - Added `obsidian-mcp` service
+  - Configured host.docker.internal for host-to-container communication
+  - Added extra_hosts for Linux Docker compatibility
+- Updated `.env.example`:
+  - Added Obsidian configuration section
+  - Documented all environment variables
+  - Setup instructions for Local REST API plugin
+
 #### Previous
 - Initial project scaffolding
 - Architecture and requirements documentation

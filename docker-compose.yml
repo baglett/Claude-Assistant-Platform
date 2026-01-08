@@ -103,6 +103,36 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
+  # Obsidian MCP Server (for vault interaction)
+  # ---------------------------------------------------------------------------
+  # Note: Obsidian runs on the host machine, so this service connects to
+  # host.docker.internal (Docker Desktop) or the host's IP address.
+  # ---------------------------------------------------------------------------
+  obsidian-mcp:
+    build:
+      context: ./MCPS/obsidian
+      dockerfile: Dockerfile
+    container_name: claude-assistant-obsidian-mcp
+    environment:
+      - OBSIDIAN_API_KEY=${OBSIDIAN_API_KEY}
+      - OBSIDIAN_HOST=${OBSIDIAN_HOST:-host.docker.internal}
+      - OBSIDIAN_PORT=${OBSIDIAN_PORT:-27124}
+      - OBSIDIAN_PROTOCOL=${OBSIDIAN_PROTOCOL:-https}
+      - OBSIDIAN_VERIFY_SSL=${OBSIDIAN_VERIFY_SSL:-false}
+    networks:
+      - claude-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Extra host entry for Linux Docker (Docker Desktop handles this automatically)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ---------------------------------------------------------------------------
   # Frontend Service (Next.js)
   # ---------------------------------------------------------------------------
   frontend:

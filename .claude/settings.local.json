@@ -8,7 +8,11 @@
       "Bash(uv run python:*)",
       "WebSearch",
       "WebFetch(domain:www.anthropic.com)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:coddingtonbear.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(Remove-Item -Path \"C:\\\\Users\\\\jaredb\\\\Documents\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\MCPS\\\\obsidian\\\\obsidian-mcp.md\" -Force)"
     ]
   }
 }
