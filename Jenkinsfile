@@ -1,7 +1,8 @@
 // =============================================================================
 // Claude Assistant Platform - Jenkinsfile
 // =============================================================================
-// CI/CD Pipeline for deploying Backend, Frontend, and Telegram MCP Server
+// CI/CD Pipeline for deploying Backend, Frontend, and MCP Servers
+// (Telegram MCP, Motion MCP)
 // =============================================================================
 
 pipeline {
@@ -24,16 +25,19 @@ pipeline {
         TELEGRAM_ALLOWED_USER_IDS = credentials('telegram-allowed-user-ids')
         POSTGRES_USER = credentials('postgres-db-user')
         POSTGRES_PASSWORD = credentials('postgres-db-password')
+        MOTION_API_KEY = credentials('motion-api-key')
 
         // Image Names
         BACKEND_IMAGE_NAME = 'claude-assistant-backend'
         FRONTEND_IMAGE_NAME = 'claude-assistant-frontend'
         TELEGRAM_MCP_IMAGE_NAME = 'claude-assistant-telegram-mcp'
+        MOTION_MCP_IMAGE_NAME = 'claude-assistant-motion-mcp'
 
         // Container Names
         BACKEND_CONTAINER = 'claude-assistant-backend'
         FRONTEND_CONTAINER = 'claude-assistant-frontend'
         TELEGRAM_MCP_CONTAINER = 'claude-assistant-telegram-mcp'
+        MOTION_MCP_CONTAINER = 'claude-assistant-motion-mcp'
 
         // Network Name
         DOCKER_NETWORK = 'claude-assistant-network'
@@ -42,6 +46,7 @@ pipeline {
         BACKEND_PORT = '8000'
         FRONTEND_PORT = '3000'
         TELEGRAM_MCP_PORT = '8081'
+        MOTION_MCP_PORT = '8082'
 
         // Database Configuration (uses existing PostgreSQL on Orange Pi)
         POSTGRES_HOST = '192.168.50.35'
@@ -66,11 +71,13 @@ pipeline {
                     env.BACKEND_IMAGE = "${DOCKER_REGISTRY}/${BACKEND_IMAGE_NAME}:${env.IMAGE_VERSION}"
                     env.FRONTEND_IMAGE = "${DOCKER_REGISTRY}/${FRONTEND_IMAGE_NAME}:${env.IMAGE_VERSION}"
                     env.TELEGRAM_MCP_IMAGE = "${DOCKER_REGISTRY}/${TELEGRAM_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
+                    env.MOTION_MCP_IMAGE = "${DOCKER_REGISTRY}/${MOTION_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
 
                     echo "Deploying version: ${env.IMAGE_VERSION}"
                     echo "Backend Image: ${env.BACKEND_IMAGE}"
                     echo "Frontend Image: ${env.FRONTEND_IMAGE}"
                     echo "Telegram MCP Image: ${env.TELEGRAM_MCP_IMAGE}"
+                    echo "Motion MCP Image: ${env.MOTION_MCP_IMAGE}"
                 }
             }
         }
@@ -140,8 +147,21 @@ pipeline {
                             export DOCKER_HOST=${DOCKER_HOST}
                             docker build --platform linux/arm64/v8 \
                                 -t ${env.TELEGRAM_MCP_IMAGE} \
-                                -f ./MCPS/Telegram/Dockerfile \
-                                ./MCPS/Telegram
+                                -f ./MCPS/telegram/Dockerfile \
+                                ./MCPS/telegram
+                            """
+                        }
+                    }
+                }
+                stage('Build Motion MCP') {
+                    steps {
+                        script {
+                            sh """
+                            export DOCKER_HOST=${DOCKER_HOST}
+                            docker build --platform linux/arm64/v8 \
+                                -t ${env.MOTION_MCP_IMAGE} \
+                                -f ./MCPS/motion/Dockerfile \
+                                ./MCPS/motion
                             """
                         }
                     }
@@ -175,6 +195,13 @@ pipeline {
                         }
                     }
                 }
+                stage('Push Motion MCP') {
+                    steps {
+                        script {
+                            sh "docker push ${env.MOTION_MCP_IMAGE}"
+                        }
+                    }
+                }
             }
         }
 
@@ -194,13 +221,16 @@ pipeline {
 
                     docker ps -f name=${TELEGRAM_MCP_CONTAINER} -q | xargs --no-run-if-empty docker container stop
                     docker container ls -a -f name=${TELEGRAM_MCP_CONTAINER} -q | xargs -r docker container rm
+
+                    docker ps -f name=${MOTION_MCP_CONTAINER} -q | xargs --no-run-if-empty docker container stop
+                    docker container ls -a -f name=${MOTION_MCP_CONTAINER} -q | xargs -r docker container rm
                     """
                 }
             }
         }
 
         // ---------------------------------------------------------------------
-        // Stage: Start Telegram MCP Container (must start first)
+        // Stage: Start MCP Servers (must start before backend)
         // ---------------------------------------------------------------------
         stage('Start Telegram MCP') {
             steps {
@@ -220,6 +250,36 @@ pipeline {
                     echo "Waiting for Telegram MCP to be healthy..."
                     sleep 10
                     curl -f http://localhost:${TELEGRAM_MCP_PORT}/health || echo "Health check pending..."
+                    """
+                }
+            }
+        }
+
+        stage('Start Motion MCP') {
+            steps {
+                script {
+                    sh """
+                    docker run -d \
+                        --name ${MOTION_MCP_CONTAINER} \
+                        --network ${DOCKER_NETWORK} \
+                        --restart unless-stopped \
+                        -p ${MOTION_MCP_PORT}:8081 \
+                        -v motion-data:/app/data \
+                        -e MOTION_API_KEY=\${MOTION_API_KEY} \
+                        -e MOTION_ACCOUNT_TYPE=team \
+                        -e MOTION_RATE_LIMIT_OVERRIDE=0 \
+                        -e MOTION_RATE_LIMIT_WINDOW=60 \
+                        -e HOST=0.0.0.0 \
+                        -e PORT=8081 \
+                        -e LOG_LEVEL=INFO \
+                        ${env.MOTION_MCP_IMAGE}
+                    """
+
+                    // Wait for health check
+                    sh """
+                    echo "Waiting for Motion MCP to be healthy..."
+                    sleep 10
+                    curl -f http://localhost:${MOTION_MCP_PORT}/health || echo "Health check pending..."
                     """
                 }
             }
@@ -257,6 +317,10 @@ pipeline {
                         -e TELEGRAM_ENABLED=true \
                         -e TELEGRAM_MCP_HOST=${TELEGRAM_MCP_CONTAINER} \
                         -e TELEGRAM_MCP_PORT=8080 \
+                        -e MOTION_API_KEY=\${MOTION_API_KEY} \
+                        -e MOTION_MCP_HOST=${MOTION_MCP_CONTAINER} \
+                        -e MOTION_MCP_PORT=8081 \
+                        -e MOTION_ENABLED=true \
                         -e TODO_EXECUTOR_ENABLED=true \
                         -e TODO_EXECUTOR_INTERVAL=30 \
                         -e TODO_EXECUTOR_BATCH_SIZE=5 \
@@ -313,6 +377,7 @@ pipeline {
                     echo "Backend:      http://192.168.50.35:${BACKEND_PORT}"
                     echo "Frontend:     http://192.168.50.35:${FRONTEND_PORT}"
                     echo "Telegram MCP: http://192.168.50.35:${TELEGRAM_MCP_PORT}"
+                    echo "Motion MCP:   http://192.168.50.35:${MOTION_MCP_PORT}"
                     echo "============================================"
                     echo ""
                     echo "Running Containers:"
