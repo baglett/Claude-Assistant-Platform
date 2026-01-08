@@ -8,7 +8,11 @@
       "Bash(uv run python:*)",
       "WebSearch",
       "WebFetch(domain:www.anthropic.com)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:github.com)",
+      "Bash(Get-ChildItem -Path \"MCPS\" -Recurse)",
+      "Bash(Select-Object FullName, Mode)",
+      "Bash(uv sync:*)"
     ]
   }
 }

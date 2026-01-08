@@ -1,0 +1,259 @@
+# =============================================================================
+# Google Calendar MCP Server - OAuth 2.0 Authentication
+# =============================================================================
+"""
+OAuth 2.0 authentication handler for Google Calendar API.
+
+Implements the Desktop App OAuth flow with automatic token refresh
+and secure token storage.
+"""
+
+import json
+import logging
+from pathlib import Path
+from typing import Optional
+
+from google.auth.exceptions import RefreshError
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+
+logger = logging.getLogger(__name__)
+
+# Google Calendar API scopes
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar",  # Full calendar access
+]
+
+
+class GoogleAuthManager:
+    """
+    Manages Google OAuth 2.0 authentication.
+
+    Handles the OAuth flow, token storage, and automatic refresh.
+
+    Attributes:
+        client_id: OAuth client ID.
+        client_secret: OAuth client secret.
+        token_path: Path to store/retrieve tokens.
+        oauth_port: Port for OAuth callback server.
+    """
+
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        token_path: str = "token.json",
+        oauth_port: int = 8085,
+    ) -> None:
+        """
+        Initialize the auth manager.
+
+        Args:
+            client_id: Google OAuth client ID.
+            client_secret: Google OAuth client secret.
+            token_path: Path to store the token file.
+            oauth_port: Port for the OAuth callback server.
+        """
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.token_path = Path(token_path)
+        self.oauth_port = oauth_port
+        self._credentials: Optional[Credentials] = None
+
+    @property
+    def is_authenticated(self) -> bool:
+        """Check if valid credentials exist."""
+        creds = self._load_credentials()
+        return creds is not None and creds.valid
+
+    @property
+    def needs_refresh(self) -> bool:
+        """Check if credentials need refresh."""
+        creds = self._load_credentials()
+        return creds is not None and creds.expired and creds.refresh_token
+
+    def _get_client_config(self) -> dict:
+        """Generate OAuth client configuration."""
+        return {
+            "installed": {
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "redirect_uris": [
+                    f"http://localhost:{self.oauth_port}",
+                    "http://localhost",
+                ],
+            }
+        }
+
+    def _load_credentials(self) -> Optional[Credentials]:
+        """Load credentials from token file."""
+        if self._credentials is not None:
+            return self._credentials
+
+        if not self.token_path.exists():
+            logger.debug(f"Token file not found: {self.token_path}")
+            return None
+
+        try:
+            with open(self.token_path, "r") as f:
+                token_data = json.load(f)
+
+            self._credentials = Credentials(
+                token=token_data.get("token"),
+                refresh_token=token_data.get("refresh_token"),
+                token_uri=token_data.get("token_uri"),
+                client_id=token_data.get("client_id"),
+                client_secret=token_data.get("client_secret"),
+                scopes=token_data.get("scopes"),
+            )
+            return self._credentials
+
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Error loading token file: {e}")
+            return None
+
+    def _save_credentials(self, creds: Credentials) -> None:
+        """Save credentials to token file."""
+        self.token_path.parent.mkdir(parents=True, exist_ok=True)
+
+        token_data = {
+            "token": creds.token,
+            "refresh_token": creds.refresh_token,
+            "token_uri": creds.token_uri,
+            "client_id": creds.client_id,
+            "client_secret": creds.client_secret,
+            "scopes": list(creds.scopes) if creds.scopes else SCOPES,
+        }
+
+        with open(self.token_path, "w") as f:
+            json.dump(token_data, f, indent=2)
+
+        logger.info(f"Credentials saved to {self.token_path}")
+
+    def get_credentials(self) -> Optional[Credentials]:
+        """
+        Get valid credentials, refreshing if necessary.
+
+        Returns:
+            Valid Credentials object or None if authentication required.
+        """
+        creds = self._load_credentials()
+
+        if creds is None:
+            logger.info("No credentials found, authentication required")
+            return None
+
+        if creds.valid:
+            return creds
+
+        if creds.expired and creds.refresh_token:
+            try:
+                logger.info("Refreshing expired credentials")
+                creds.refresh(Request())
+                self._save_credentials(creds)
+                self._credentials = creds
+                return creds
+            except RefreshError as e:
+                logger.error(f"Failed to refresh credentials: {e}")
+                return None
+
+        return None
+
+    def authenticate(self) -> Credentials:
+        """
+        Run the OAuth authentication flow.
+
+        Opens a browser for user authentication and returns credentials.
+
+        Returns:
+            Valid Credentials object.
+
+        Raises:
+            Exception: If authentication fails.
+        """
+        client_config = self._get_client_config()
+
+        flow = InstalledAppFlow.from_client_config(
+            client_config,
+            scopes=SCOPES,
+        )
+
+        logger.info(f"Starting OAuth flow on port {self.oauth_port}")
+
+        # Run local server for OAuth callback
+        creds = flow.run_local_server(
+            port=self.oauth_port,
+            prompt="consent",
+            access_type="offline",
+        )
+
+        self._save_credentials(creds)
+        self._credentials = creds
+
+        logger.info("Authentication successful")
+        return creds
+
+    def revoke(self) -> bool:
+        """
+        Revoke current credentials and delete token file.
+
+        Returns:
+            True if revocation successful, False otherwise.
+        """
+        creds = self._load_credentials()
+
+        if creds is None:
+            logger.info("No credentials to revoke")
+            return True
+
+        try:
+            # Attempt to revoke the token with Google
+            import httpx
+
+            response = httpx.post(
+                "https://oauth2.googleapis.com/revoke",
+                params={"token": creds.token},
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+
+            if response.status_code == 200:
+                logger.info("Token revoked successfully")
+            else:
+                logger.warning(f"Token revocation returned: {response.status_code}")
+
+        except Exception as e:
+            logger.error(f"Error revoking token: {e}")
+
+        # Delete local token file regardless
+        if self.token_path.exists():
+            self.token_path.unlink()
+            logger.info(f"Deleted token file: {self.token_path}")
+
+        self._credentials = None
+        return True
+
+    def get_auth_url(self) -> str:
+        """
+        Get the OAuth authorization URL for manual authentication.
+
+        Returns:
+            Authorization URL string.
+        """
+        client_config = self._get_client_config()
+
+        flow = InstalledAppFlow.from_client_config(
+            client_config,
+            scopes=SCOPES,
+            redirect_uri=f"http://localhost:{self.oauth_port}",
+        )
+
+        auth_url, _ = flow.authorization_url(
+            access_type="offline",
+            prompt="consent",
+        )
+
+        return auth_url
