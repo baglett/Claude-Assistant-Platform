@@ -40,10 +40,16 @@ services:
       - TELEGRAM_ENABLED=${TELEGRAM_ENABLED:-true}
       - TELEGRAM_MCP_HOST=telegram-mcp
       - TELEGRAM_MCP_PORT=8080
+      # Motion MCP configuration
+      - MOTION_MCP_HOST=motion-mcp
+      - MOTION_MCP_PORT=8081
+      - MOTION_API_KEY=${MOTION_API_KEY}
     depends_on:
       db:
         condition: service_healthy
       telegram-mcp:
+        condition: service_healthy
+      motion-mcp:
         condition: service_healthy
     networks:
       - claude-network
@@ -103,6 +109,33 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
+  # Motion MCP Server (for task/project management)
+  # ---------------------------------------------------------------------------
+  motion-mcp:
+    build:
+      context: ./MCPS/motion
+      dockerfile: Dockerfile
+    container_name: claude-assistant-motion-mcp
+    environment:
+      - MOTION_API_KEY=${MOTION_API_KEY}
+      - MOTION_ACCOUNT_TYPE=${MOTION_ACCOUNT_TYPE:-individual}
+      - MOTION_RATE_LIMIT_OVERRIDE=${MOTION_RATE_LIMIT_OVERRIDE:-0}
+      - MOTION_RATE_LIMIT_WINDOW=${MOTION_RATE_LIMIT_WINDOW:-60}
+      - HOST=0.0.0.0
+      - PORT=8081
+    volumes:
+      - motion-data:/app/data
+    networks:
+      - claude-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
   # Frontend Service (Next.js)
   # ---------------------------------------------------------------------------
   frontend:
@@ -142,3 +175,5 @@ networks:
 volumes:
   pgdata:
     name: claude-assistant-pgdata
+  motion-data:
+    name: claude-assistant-motion-data
