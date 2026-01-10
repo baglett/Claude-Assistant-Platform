@@ -2,7 +2,7 @@
 // Claude Assistant Platform - Jenkinsfile
 // =============================================================================
 // CI/CD Pipeline for deploying Backend, Frontend, and MCP Servers
-// (Telegram MCP, Motion MCP)
+// (Telegram MCP, Motion MCP, Google Calendar MCP, Gmail MCP)
 // =============================================================================
 
 pipeline {
@@ -26,18 +26,28 @@ pipeline {
         POSTGRES_USER = credentials('postgres-db-user')
         POSTGRES_PASSWORD = credentials('postgres-db-password')
         MOTION_API_KEY = credentials('motion-api-key')
+        GOOGLE_CALENDAR_CLIENT_ID = credentials('google-calendar-client-id')
+        GOOGLE_CALENDAR_CLIENT_SECRET = credentials('google-calendar-client-secret')
+        GOOGLE_CALENDAR_REFRESH_TOKEN = credentials('google-calendar-refresh-token')
+        GMAIL_CLIENT_ID = credentials('gmail-client-id')
+        GMAIL_CLIENT_SECRET = credentials('gmail-client-secret')
+        GMAIL_REFRESH_TOKEN = credentials('gmail-refresh-token')
 
         // Image Names
         BACKEND_IMAGE_NAME = 'claude-assistant-backend'
         FRONTEND_IMAGE_NAME = 'claude-assistant-frontend'
         TELEGRAM_MCP_IMAGE_NAME = 'claude-assistant-telegram-mcp'
         MOTION_MCP_IMAGE_NAME = 'claude-assistant-motion-mcp'
+        GOOGLE_CALENDAR_MCP_IMAGE_NAME = 'claude-assistant-google-calendar-mcp'
+        GMAIL_MCP_IMAGE_NAME = 'claude-assistant-gmail-mcp'
 
         // Container Names
         BACKEND_CONTAINER = 'claude-assistant-backend'
         FRONTEND_CONTAINER = 'claude-assistant-frontend'
         TELEGRAM_MCP_CONTAINER = 'claude-assistant-telegram-mcp'
         MOTION_MCP_CONTAINER = 'claude-assistant-motion-mcp'
+        GOOGLE_CALENDAR_MCP_CONTAINER = 'claude-assistant-google-calendar-mcp'
+        GMAIL_MCP_CONTAINER = 'claude-assistant-gmail-mcp'
 
         // Network Name
         DOCKER_NETWORK = 'claude-assistant-network'
@@ -47,6 +57,8 @@ pipeline {
         FRONTEND_PORT = '3000'
         TELEGRAM_MCP_PORT = '8081'
         MOTION_MCP_PORT = '8082'
+        GOOGLE_CALENDAR_MCP_PORT = '8084'
+        GMAIL_MCP_PORT = '8085'
 
         // Database Configuration (uses existing PostgreSQL on Orange Pi)
         POSTGRES_HOST = '192.168.50.35'
@@ -72,12 +84,16 @@ pipeline {
                     env.FRONTEND_IMAGE = "${DOCKER_REGISTRY}/${FRONTEND_IMAGE_NAME}:${env.IMAGE_VERSION}"
                     env.TELEGRAM_MCP_IMAGE = "${DOCKER_REGISTRY}/${TELEGRAM_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
                     env.MOTION_MCP_IMAGE = "${DOCKER_REGISTRY}/${MOTION_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
+                    env.GOOGLE_CALENDAR_MCP_IMAGE = "${DOCKER_REGISTRY}/${GOOGLE_CALENDAR_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
+                    env.GMAIL_MCP_IMAGE = "${DOCKER_REGISTRY}/${GMAIL_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
 
                     echo "Deploying version: ${env.IMAGE_VERSION}"
                     echo "Backend Image: ${env.BACKEND_IMAGE}"
                     echo "Frontend Image: ${env.FRONTEND_IMAGE}"
                     echo "Telegram MCP Image: ${env.TELEGRAM_MCP_IMAGE}"
                     echo "Motion MCP Image: ${env.MOTION_MCP_IMAGE}"
+                    echo "Google Calendar MCP Image: ${env.GOOGLE_CALENDAR_MCP_IMAGE}"
+                    echo "Gmail MCP Image: ${env.GMAIL_MCP_IMAGE}"
                 }
             }
         }
@@ -166,6 +182,32 @@ pipeline {
                         }
                     }
                 }
+                stage('Build Google Calendar MCP') {
+                    steps {
+                        script {
+                            sh """
+                            export DOCKER_HOST=${DOCKER_HOST}
+                            docker build --platform linux/arm64/v8 \
+                                -t ${env.GOOGLE_CALENDAR_MCP_IMAGE} \
+                                -f ./MCPS/google-calendar/Dockerfile \
+                                ./MCPS/google-calendar
+                            """
+                        }
+                    }
+                }
+                stage('Build Gmail MCP') {
+                    steps {
+                        script {
+                            sh """
+                            export DOCKER_HOST=${DOCKER_HOST}
+                            docker build --platform linux/arm64/v8 \
+                                -t ${env.GMAIL_MCP_IMAGE} \
+                                -f ./MCPS/gmail/Dockerfile \
+                                ./MCPS/gmail
+                            """
+                        }
+                    }
+                }
             }
         }
 
@@ -202,6 +244,20 @@ pipeline {
                         }
                     }
                 }
+                stage('Push Google Calendar MCP') {
+                    steps {
+                        script {
+                            sh "docker push ${env.GOOGLE_CALENDAR_MCP_IMAGE}"
+                        }
+                    }
+                }
+                stage('Push Gmail MCP') {
+                    steps {
+                        script {
+                            sh "docker push ${env.GMAIL_MCP_IMAGE}"
+                        }
+                    }
+                }
             }
         }
 
@@ -224,6 +280,12 @@ pipeline {
 
                     docker ps -f name=${MOTION_MCP_CONTAINER} -q | xargs --no-run-if-empty docker container stop
                     docker container ls -a -f name=${MOTION_MCP_CONTAINER} -q | xargs -r docker container rm
+
+                    docker ps -f name=${GOOGLE_CALENDAR_MCP_CONTAINER} -q | xargs --no-run-if-empty docker container stop
+                    docker container ls -a -f name=${GOOGLE_CALENDAR_MCP_CONTAINER} -q | xargs -r docker container rm
+
+                    docker ps -f name=${GMAIL_MCP_CONTAINER} -q | xargs --no-run-if-empty docker container stop
+                    docker container ls -a -f name=${GMAIL_MCP_CONTAINER} -q | xargs -r docker container rm
                     """
                 }
             }
@@ -286,6 +348,71 @@ pipeline {
         }
 
         // ---------------------------------------------------------------------
+        // Stage: Start Google Calendar MCP Container
+        // ---------------------------------------------------------------------
+        stage('Start Google Calendar MCP') {
+            steps {
+                script {
+                    sh """
+                    docker run -d \
+                        --name ${GOOGLE_CALENDAR_MCP_CONTAINER} \
+                        --network ${DOCKER_NETWORK} \
+                        --restart unless-stopped \
+                        -p ${GOOGLE_CALENDAR_MCP_PORT}:8084 \
+                        -v google-calendar-data:/app/data \
+                        -e GOOGLE_CALENDAR_CLIENT_ID=\${GOOGLE_CALENDAR_CLIENT_ID} \
+                        -e GOOGLE_CALENDAR_CLIENT_SECRET=\${GOOGLE_CALENDAR_CLIENT_SECRET} \
+                        -e GOOGLE_CALENDAR_REFRESH_TOKEN=\${GOOGLE_CALENDAR_REFRESH_TOKEN} \
+                        -e GOOGLE_CALENDAR_TOKEN_PATH=/app/data/token.json \
+                        -e GOOGLE_CALENDAR_DEFAULT_TIMEZONE=America/New_York \
+                        -e GOOGLE_CALENDAR_MCP_HOST=0.0.0.0 \
+                        -e GOOGLE_CALENDAR_MCP_PORT=8084 \
+                        ${env.GOOGLE_CALENDAR_MCP_IMAGE}
+                    """
+
+                    // Wait for health check
+                    sh """
+                    echo "Waiting for Google Calendar MCP to be healthy..."
+                    sleep 10
+                    curl -f http://localhost:${GOOGLE_CALENDAR_MCP_PORT}/health || echo "Health check pending..."
+                    """
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // Stage: Start Gmail MCP Container
+        // ---------------------------------------------------------------------
+        stage('Start Gmail MCP') {
+            steps {
+                script {
+                    sh """
+                    docker run -d \
+                        --name ${GMAIL_MCP_CONTAINER} \
+                        --network ${DOCKER_NETWORK} \
+                        --restart unless-stopped \
+                        -p ${GMAIL_MCP_PORT}:8085 \
+                        -v gmail-data:/app/data \
+                        -e GMAIL_CLIENT_ID=\${GMAIL_CLIENT_ID} \
+                        -e GMAIL_CLIENT_SECRET=\${GMAIL_CLIENT_SECRET} \
+                        -e GMAIL_REFRESH_TOKEN=\${GMAIL_REFRESH_TOKEN} \
+                        -e GMAIL_TOKEN_PATH=/app/data/token.json \
+                        -e GMAIL_MCP_HOST=0.0.0.0 \
+                        -e GMAIL_MCP_PORT=8085 \
+                        ${env.GMAIL_MCP_IMAGE}
+                    """
+
+                    // Wait for health check
+                    sh """
+                    echo "Waiting for Gmail MCP to be healthy..."
+                    sleep 10
+                    curl -f http://localhost:${GMAIL_MCP_PORT}/health || echo "Health check pending..."
+                    """
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------
         // Stage: Start Backend Container
         // ---------------------------------------------------------------------
         stage('Start Backend') {
@@ -321,6 +448,10 @@ pipeline {
                         -e MOTION_MCP_HOST=${MOTION_MCP_CONTAINER} \
                         -e MOTION_MCP_PORT=8081 \
                         -e MOTION_ENABLED=true \
+                        -e GOOGLE_CALENDAR_MCP_HOST=${GOOGLE_CALENDAR_MCP_CONTAINER} \
+                        -e GOOGLE_CALENDAR_MCP_PORT=8084 \
+                        -e GMAIL_MCP_HOST=${GMAIL_MCP_CONTAINER} \
+                        -e GMAIL_MCP_PORT=8085 \
                         -e TODO_EXECUTOR_ENABLED=true \
                         -e TODO_EXECUTOR_INTERVAL=30 \
                         -e TODO_EXECUTOR_BATCH_SIZE=5 \
@@ -374,10 +505,12 @@ pipeline {
                     echo "============================================"
                     echo "Deployment Complete!"
                     echo "============================================"
-                    echo "Backend:      http://192.168.50.35:${BACKEND_PORT}"
-                    echo "Frontend:     http://192.168.50.35:${FRONTEND_PORT}"
-                    echo "Telegram MCP: http://192.168.50.35:${TELEGRAM_MCP_PORT}"
-                    echo "Motion MCP:   http://192.168.50.35:${MOTION_MCP_PORT}"
+                    echo "Backend:             http://192.168.50.35:${BACKEND_PORT}"
+                    echo "Frontend:            http://192.168.50.35:${FRONTEND_PORT}"
+                    echo "Telegram MCP:        http://192.168.50.35:${TELEGRAM_MCP_PORT}"
+                    echo "Motion MCP:          http://192.168.50.35:${MOTION_MCP_PORT}"
+                    echo "Google Calendar MCP: http://192.168.50.35:${GOOGLE_CALENDAR_MCP_PORT}"
+                    echo "Gmail MCP:           http://192.168.50.35:${GMAIL_MCP_PORT}"
                     echo "============================================"
                     echo ""
                     echo "Running Containers:"

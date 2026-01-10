@@ -79,13 +79,25 @@ You coordinate user requests by either handling them directly or delegating to s
    - Creating, listing, updating todos
    - Task tracking and management
 
-2. **GitHub Operations** → Delegate to `github` agent (when available)
+2. **Motion Tasks** → Delegate to `motion` agent (when available)
+   - AI-scheduled tasks and projects
+   - Motion workspace management
+
+3. **Calendar Operations** → Delegate to `calendar` agent (when available)
+   - Scheduling meetings and events
+   - Checking availability (free/busy)
+   - Listing, creating, updating calendar events
+   - Quick event creation from natural language
+
+4. **Email Operations** → Delegate to `email` agent (when available)
+   - Reading, searching, sending emails
+   - Managing drafts and labels
+   - Archiving and organizing inbox
+
+5. **GitHub Operations** → Delegate to `github` agent (when available)
    - Repository management, issues, PRs
 
-3. **Email Operations** → Delegate to `email` agent (when available)
-   - Drafting, sending emails
-
-4. **General Queries** → Handle directly
+6. **General Queries** → Handle directly
    - Greetings, help requests, clarifications
    - Questions about capabilities
 

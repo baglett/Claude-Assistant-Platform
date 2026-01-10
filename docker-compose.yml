@@ -44,12 +44,22 @@ services:
       - MOTION_MCP_HOST=motion-mcp
       - MOTION_MCP_PORT=8081
       - MOTION_API_KEY=${MOTION_API_KEY}
+      # Google Calendar MCP configuration
+      - GOOGLE_CALENDAR_MCP_HOST=google-calendar-mcp
+      - GOOGLE_CALENDAR_MCP_PORT=8084
+      # Gmail MCP configuration
+      - GMAIL_MCP_HOST=gmail-mcp
+      - GMAIL_MCP_PORT=8085
     depends_on:
       db:
         condition: service_healthy
       telegram-mcp:
         condition: service_healthy
       motion-mcp:
+        condition: service_healthy
+      google-calendar-mcp:
+        condition: service_healthy
+      gmail-mcp:
         condition: service_healthy
     networks:
       - claude-network
@@ -136,6 +146,61 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
+  # Google Calendar MCP Server
+  # ---------------------------------------------------------------------------
+  google-calendar-mcp:
+    build:
+      context: ./MCPS/google-calendar
+      dockerfile: Dockerfile
+    container_name: claude-assistant-google-calendar-mcp
+    environment:
+      - GOOGLE_CALENDAR_CLIENT_ID=${GOOGLE_CALENDAR_CLIENT_ID}
+      - GOOGLE_CALENDAR_CLIENT_SECRET=${GOOGLE_CALENDAR_CLIENT_SECRET}
+      - GOOGLE_CALENDAR_REFRESH_TOKEN=${GOOGLE_CALENDAR_REFRESH_TOKEN}
+      - GOOGLE_CALENDAR_TOKEN_PATH=/app/data/token.json
+      - GOOGLE_CALENDAR_DEFAULT_TIMEZONE=${GOOGLE_CALENDAR_DEFAULT_TIMEZONE:-America/New_York}
+      - GOOGLE_CALENDAR_MCP_HOST=0.0.0.0
+      - GOOGLE_CALENDAR_MCP_PORT=8084
+    volumes:
+      - google-calendar-data:/app/data
+    networks:
+      - claude-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8084/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Gmail MCP Server
+  # ---------------------------------------------------------------------------
+  gmail-mcp:
+    build:
+      context: ./MCPS/gmail
+      dockerfile: Dockerfile
+    container_name: claude-assistant-gmail-mcp
+    environment:
+      - GMAIL_CLIENT_ID=${GMAIL_CLIENT_ID}
+      - GMAIL_CLIENT_SECRET=${GMAIL_CLIENT_SECRET}
+      - GMAIL_REFRESH_TOKEN=${GMAIL_REFRESH_TOKEN}
+      - GMAIL_TOKEN_PATH=/app/data/token.json
+      - GMAIL_MCP_HOST=0.0.0.0
+      - GMAIL_MCP_PORT=8085
+    volumes:
+      - gmail-data:/app/data
+    networks:
+      - claude-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8085/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
   # Frontend Service (Next.js)
   # ---------------------------------------------------------------------------
   frontend:
@@ -177,3 +242,7 @@ volumes:
     name: claude-assistant-pgdata
   motion-data:
     name: claude-assistant-motion-data
+  google-calendar-data:
+    name: claude-assistant-google-calendar-data
+  gmail-data:
+    name: claude-assistant-gmail-data
