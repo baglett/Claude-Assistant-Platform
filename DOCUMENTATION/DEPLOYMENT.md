@@ -145,10 +145,14 @@ Configure in: **Jenkins → Manage Jenkins → Credentials → System → Global
 | `motion-api-key` | Secret text | Motion API key | [app.usemotion.com](https://app.usemotion.com/web/settings/api) |
 | `google-calendar-client-id` | Secret text | Google OAuth Client ID | [Google Cloud Console](https://console.cloud.google.com/) |
 | `google-calendar-client-secret` | Secret text | Google OAuth Client Secret | [Google Cloud Console](https://console.cloud.google.com/) |
+| `google-calendar-refresh-token` | Secret text | Google OAuth Refresh Token | Run MCP locally, complete OAuth |
 | `gmail-client-id` | Secret text | Google OAuth Client ID | [Google Cloud Console](https://console.cloud.google.com/) |
 | `gmail-client-secret` | Secret text | Google OAuth Client Secret | [Google Cloud Console](https://console.cloud.google.com/) |
+| `gmail-refresh-token` | Secret text | Google OAuth Refresh Token | Run MCP locally, complete OAuth |
 
-**Note:** You can use the same OAuth credentials for both Google Calendar and Gmail if they're from the same Google Cloud project with both APIs enabled.
+**Notes:**
+- You can use the same OAuth Client ID/Secret for both Google Calendar and Gmail if they're from the same Google Cloud project with both APIs enabled.
+- The refresh tokens are different for each service (they are scoped to different APIs).
 
 ### Adding Credentials
 

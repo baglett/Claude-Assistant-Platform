@@ -20,6 +20,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.agents.gmail_agent import GmailAgent
+from src.agents.google_calendar_agent import GoogleCalendarAgent
 from src.agents.motion_agent import MotionAgent
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.todo_agent import TodoAgent
@@ -114,6 +116,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         else:
             logger.info(
                 "Motion integration not configured - MotionAgent not registered"
+            )
+
+        # Register Google Calendar Agent if configured
+        if settings.google_calendar_is_configured:
+            calendar_agent = GoogleCalendarAgent(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_model,
+                mcp_url=settings.google_calendar_mcp_url,
+            )
+            orchestrator.register_agent(calendar_agent)
+            logger.info(
+                f"Registered GoogleCalendarAgent with orchestrator "
+                f"(MCP: {settings.google_calendar_mcp_url})"
+            )
+        else:
+            logger.info(
+                "Google Calendar integration disabled - GoogleCalendarAgent not registered"
+            )
+
+        # Register Gmail Agent if configured
+        if settings.gmail_is_configured:
+            gmail_agent = GmailAgent(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_model,
+                mcp_url=settings.gmail_mcp_url,
+            )
+            orchestrator.register_agent(gmail_agent)
+            logger.info(
+                f"Registered GmailAgent with orchestrator "
+                f"(MCP: {settings.gmail_mcp_url})"
+            )
+        else:
+            logger.info(
+                "Gmail integration disabled - GmailAgent not registered"
             )
 
         # Store orchestrator in app state for route access

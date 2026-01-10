@@ -17,7 +17,8 @@
       "WebFetch(domain:docs.usemotion.com)",
       "Bash(uv sync:*)",
       "Bash(uv run ruff check:*)",
-      "Bash(uv run pytest:*)"
+      "Bash(uv run pytest:*)",
+      "Bash(Get-ChildItem -Path \"MCPS\" -Directory)"
     ]
   }
 }

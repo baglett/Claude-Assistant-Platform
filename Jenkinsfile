@@ -28,8 +28,10 @@ pipeline {
         MOTION_API_KEY = credentials('motion-api-key')
         GOOGLE_CALENDAR_CLIENT_ID = credentials('google-calendar-client-id')
         GOOGLE_CALENDAR_CLIENT_SECRET = credentials('google-calendar-client-secret')
+        GOOGLE_CALENDAR_REFRESH_TOKEN = credentials('google-calendar-refresh-token')
         GMAIL_CLIENT_ID = credentials('gmail-client-id')
         GMAIL_CLIENT_SECRET = credentials('gmail-client-secret')
+        GMAIL_REFRESH_TOKEN = credentials('gmail-refresh-token')
 
         // Image Names
         BACKEND_IMAGE_NAME = 'claude-assistant-backend'
@@ -360,6 +362,7 @@ pipeline {
                         -v google-calendar-data:/app/data \
                         -e GOOGLE_CALENDAR_CLIENT_ID=\${GOOGLE_CALENDAR_CLIENT_ID} \
                         -e GOOGLE_CALENDAR_CLIENT_SECRET=\${GOOGLE_CALENDAR_CLIENT_SECRET} \
+                        -e GOOGLE_CALENDAR_REFRESH_TOKEN=\${GOOGLE_CALENDAR_REFRESH_TOKEN} \
                         -e GOOGLE_CALENDAR_TOKEN_PATH=/app/data/token.json \
                         -e GOOGLE_CALENDAR_DEFAULT_TIMEZONE=America/New_York \
                         -e GOOGLE_CALENDAR_MCP_HOST=0.0.0.0 \
@@ -392,6 +395,7 @@ pipeline {
                         -v gmail-data:/app/data \
                         -e GMAIL_CLIENT_ID=\${GMAIL_CLIENT_ID} \
                         -e GMAIL_CLIENT_SECRET=\${GMAIL_CLIENT_SECRET} \
+                        -e GMAIL_REFRESH_TOKEN=\${GMAIL_REFRESH_TOKEN} \
                         -e GMAIL_TOKEN_PATH=/app/data/token.json \
                         -e GMAIL_MCP_HOST=0.0.0.0 \
                         -e GMAIL_MCP_PORT=8085 \

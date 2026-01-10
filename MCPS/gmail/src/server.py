@@ -634,10 +634,42 @@ async def http_list_drafts(max_results: int = 10) -> dict:
 
 
 # -----------------------------------------------------------------------------
+# Helper Functions
+# -----------------------------------------------------------------------------
+def is_interactive_environment() -> bool:
+    """
+    Check if we're running in an interactive environment where OAuth browser flow works.
+
+    Returns False if running in Docker, headless server, or no display available.
+    """
+    import os
+    import sys
+
+    # Check for Docker
+    if os.path.exists("/.dockerenv"):
+        return False
+
+    # Check for common container indicators
+    if os.environ.get("KUBERNETES_SERVICE_HOST"):
+        return False
+
+    # Check for display (Linux)
+    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
+        return False
+
+    # Check for SSH session without X forwarding
+    if os.environ.get("SSH_CLIENT") and not os.environ.get("DISPLAY"):
+        return False
+
+    return True
+
+
+# -----------------------------------------------------------------------------
 # Main Entry Point
 # -----------------------------------------------------------------------------
 def main() -> None:
     """Run the server."""
+    import os
     import uvicorn
 
     logger.info(f"Starting Gmail MCP Server on {settings.host}:{settings.port}")
@@ -648,7 +680,58 @@ def main() -> None:
     if gmail_client.is_authenticated():
         logger.info("Already authenticated with Gmail")
     else:
-        logger.info("Not authenticated - run authentication flow to enable tools")
+        # Check if we have credentials configured
+        if settings.gmail_client_id and settings.gmail_client_secret:
+            # Check if refresh token is available via env var
+            refresh_token = os.environ.get("GMAIL_REFRESH_TOKEN")
+
+            if refresh_token:
+                # Token should have been loaded by auth_manager already
+                # If we got here, it means the refresh failed
+                logger.error("GMAIL_REFRESH_TOKEN is set but authentication failed")
+                logger.error("The refresh token may be invalid or revoked")
+                logger.info("Please generate a new refresh token")
+            elif is_interactive_environment():
+                # Interactive environment - can run browser OAuth flow
+                logger.info("=" * 60)
+                logger.info("Gmail authentication required - starting OAuth flow...")
+                logger.info("=" * 60)
+                logger.info("")
+                logger.info("A browser window will open for you to sign in to Google.")
+                logger.info("After signing in, grant the requested permissions.")
+                logger.info("")
+                logger.info(f"OAuth callback will be received on port {settings.gmail_oauth_port}")
+                logger.info("")
+
+                try:
+                    auth_manager.authenticate()
+                    logger.info("Authentication successful!")
+                    logger.info("")
+                    logger.info("To use this in production, set GMAIL_REFRESH_TOKEN to:")
+                    # Read the saved token to show the refresh token
+                    import json
+                    with open(settings.gmail_token_path, "r") as f:
+                        token_data = json.load(f)
+                    logger.info(f"  {token_data.get('refresh_token')}")
+                    logger.info("")
+                except Exception as e:
+                    logger.error(f"Authentication failed: {e}")
+            else:
+                # Headless/container environment - need refresh token
+                logger.warning("=" * 60)
+                logger.warning("Gmail authentication required but running in headless mode")
+                logger.warning("=" * 60)
+                logger.warning("")
+                logger.warning("To authenticate, set the GMAIL_REFRESH_TOKEN environment variable.")
+                logger.warning("")
+                logger.warning("To get a refresh token:")
+                logger.warning("  1. Run this MCP server locally (not in Docker)")
+                logger.warning("  2. Complete the OAuth flow in your browser")
+                logger.warning("  3. Copy the refresh_token from data/gmail_token.json")
+                logger.warning("  4. Set GMAIL_REFRESH_TOKEN=<token> in your environment")
+                logger.warning("")
+        else:
+            logger.info("Not authenticated - set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET")
 
     uvicorn.run(
         fastapi_app,

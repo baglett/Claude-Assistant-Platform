@@ -6,10 +6,16 @@ OAuth 2.0 authentication handler for Google Calendar API.
 
 Implements the Desktop App OAuth flow with automatic token refresh
 and secure token storage.
+
+Supports multiple authentication methods:
+1. Existing token file (from previous auth)
+2. Refresh token from environment variable (for containerized deployments)
+3. Interactive OAuth flow (for local development)
 """
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +30,9 @@ logger = logging.getLogger(__name__)
 SCOPES = [
     "https://www.googleapis.com/auth/calendar",  # Full calendar access
 ]
+
+# Environment variable name for refresh token
+REFRESH_TOKEN_ENV_VAR = "GOOGLE_CALENDAR_REFRESH_TOKEN"
 
 
 class GoogleAuthManager:
@@ -90,30 +99,85 @@ class GoogleAuthManager:
         }
 
     def _load_credentials(self) -> Optional[Credentials]:
-        """Load credentials from token file."""
+        """
+        Load credentials from token file or environment variable.
+
+        Priority order:
+        1. Existing token file
+        2. Refresh token from environment variable
+        """
         if self._credentials is not None:
             return self._credentials
 
-        if not self.token_path.exists():
-            logger.debug(f"Token file not found: {self.token_path}")
-            return None
+        # Try loading from token file first
+        if self.token_path.exists():
+            try:
+                with open(self.token_path, "r") as f:
+                    token_data = json.load(f)
 
+                self._credentials = Credentials(
+                    token=token_data.get("token"),
+                    refresh_token=token_data.get("refresh_token"),
+                    token_uri=token_data.get("token_uri"),
+                    client_id=token_data.get("client_id"),
+                    client_secret=token_data.get("client_secret"),
+                    scopes=token_data.get("scopes"),
+                )
+                logger.debug(f"Loaded credentials from {self.token_path}")
+                return self._credentials
+
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error(f"Error loading token file: {e}")
+
+        # Try building from refresh token environment variable
+        refresh_token = os.environ.get(REFRESH_TOKEN_ENV_VAR)
+        if refresh_token:
+            logger.info(f"Building credentials from {REFRESH_TOKEN_ENV_VAR} environment variable")
+            self._credentials = self._build_credentials_from_refresh_token(refresh_token)
+            if self._credentials:
+                # Save to token file for future use
+                self._save_credentials(self._credentials)
+                return self._credentials
+
+        logger.debug(f"No credentials found (no token file, no {REFRESH_TOKEN_ENV_VAR})")
+        return None
+
+    def _build_credentials_from_refresh_token(self, refresh_token: str) -> Optional[Credentials]:
+        """
+        Build credentials from a refresh token.
+
+        This allows containerized deployments to authenticate using a refresh token
+        stored as an environment variable, without needing interactive OAuth flow.
+
+        Args:
+            refresh_token: The OAuth refresh token.
+
+        Returns:
+            Valid Credentials object or None if refresh fails.
+        """
         try:
-            with open(self.token_path, "r") as f:
-                token_data = json.load(f)
-
-            self._credentials = Credentials(
-                token=token_data.get("token"),
-                refresh_token=token_data.get("refresh_token"),
-                token_uri=token_data.get("token_uri"),
-                client_id=token_data.get("client_id"),
-                client_secret=token_data.get("client_secret"),
-                scopes=token_data.get("scopes"),
+            # Create credentials with just the refresh token
+            creds = Credentials(
+                token=None,  # Will be fetched on first refresh
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                scopes=SCOPES,
             )
-            return self._credentials
 
-        except (json.JSONDecodeError, KeyError) as e:
-            logger.error(f"Error loading token file: {e}")
+            # Immediately refresh to get a valid access token
+            logger.info("Refreshing credentials from refresh token...")
+            creds.refresh(Request())
+
+            logger.info("Successfully built credentials from refresh token")
+            return creds
+
+        except RefreshError as e:
+            logger.error(f"Failed to refresh credentials from token: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error building credentials from refresh token: {e}")
             return None
 
     def _save_credentials(self, creds: Credentials) -> None:

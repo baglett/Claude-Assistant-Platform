@@ -2,6 +2,10 @@
 # Google Calendar MCP Server - Makefile
 # =============================================================================
 
+# Load environment variables from root .env file
+-include ../../.env
+export
+
 .PHONY: install dev run test lint format clean docker-build docker-run
 
 # Install production dependencies

@@ -66,6 +66,9 @@ The `search_messages` and `list_messages` tools support Gmail's search operators
 GMAIL_CLIENT_ID=your-client-id
 GMAIL_CLIENT_SECRET=your-client-secret
 
+# Required for containerized/headless deployments
+GMAIL_REFRESH_TOKEN=1//0eXXXXXXXXXXXXXXXXXXXX
+
 # Optional
 GMAIL_TOKEN_PATH=./data/gmail_token.json
 GMAIL_OAUTH_PORT=8086
@@ -73,16 +76,38 @@ GMAIL_MCP_HOST=0.0.0.0
 GMAIL_MCP_PORT=8085
 ```
 
-### 3. First-Time Authentication
+### 3. First-Time Authentication (Local)
 
 ```bash
-# Local development
-uv sync
-uv run python -m src.server
+# Run the server locally
+make dev
+make run
 
-# Get auth URL and complete OAuth flow
-curl http://localhost:8085/auth/url
+# Browser opens automatically for OAuth
+# After completing OAuth, the refresh token is printed to console
+# Copy this token for production use
 ```
+
+### 4. Production Deployment (Jenkins)
+
+For containerized deployments, you must configure these Jenkins credentials:
+
+| Jenkins Credential ID | Description | How to Get |
+|----------------------|-------------|------------|
+| `gmail-client-id` | OAuth Client ID | Google Cloud Console → Credentials |
+| `gmail-client-secret` | OAuth Client Secret | Google Cloud Console → Credentials |
+| `gmail-refresh-token` | Long-lived refresh token | Run `make run` locally, complete OAuth, copy from console |
+
+**Steps to get the refresh token:**
+1. Run `make run` locally (not in Docker)
+2. Complete the OAuth flow in your browser
+3. The server prints: `To use this in production, set GMAIL_REFRESH_TOKEN to: 1//0eXXXX...`
+4. Copy that token and add it to Jenkins as `gmail-refresh-token`
+
+The refresh token is long-lived and only expires if:
+- User revokes access in Google Account settings
+- Token is unused for 6 months
+- OAuth app credentials change
 
 ## Development
 

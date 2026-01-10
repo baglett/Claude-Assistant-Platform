@@ -46,6 +46,9 @@ MCP server providing Google Calendar API tools for the Claude Assistant Platform
 GOOGLE_CALENDAR_CLIENT_ID=your-client-id
 GOOGLE_CALENDAR_CLIENT_SECRET=your-client-secret
 
+# Required for containerized/headless deployments
+GOOGLE_CALENDAR_REFRESH_TOKEN=1//0eXXXXXXXXXXXXXXXXXXXX
+
 # Optional
 GOOGLE_CALENDAR_TOKEN_PATH=./data/token.json
 GOOGLE_CALENDAR_OAUTH_PORT=8085
@@ -54,20 +57,38 @@ GOOGLE_CALENDAR_MCP_HOST=0.0.0.0
 GOOGLE_CALENDAR_MCP_PORT=8084
 ```
 
-### 3. First-Time Authentication
-
-Run the server and trigger authentication:
+### 3. First-Time Authentication (Local)
 
 ```bash
-# Local development
-uv sync
-uv run python -m src.server
+# Run the server locally
+make dev
+make run
 
-# Then call the authenticate endpoint or use the auth URL
-curl http://localhost:8084/auth/url
+# Browser opens automatically for OAuth
+# After completing OAuth, the refresh token is printed to console
+# Copy this token for production use
 ```
 
-Visit the returned URL in a browser to complete OAuth flow.
+### 4. Production Deployment (Jenkins)
+
+For containerized deployments, you must configure these Jenkins credentials:
+
+| Jenkins Credential ID | Description | How to Get |
+|----------------------|-------------|------------|
+| `google-calendar-client-id` | OAuth Client ID | Google Cloud Console → Credentials |
+| `google-calendar-client-secret` | OAuth Client Secret | Google Cloud Console → Credentials |
+| `google-calendar-refresh-token` | Long-lived refresh token | Run `make run` locally, complete OAuth, copy from console |
+
+**Steps to get the refresh token:**
+1. Run `make run` locally (not in Docker)
+2. Complete the OAuth flow in your browser
+3. The server prints: `To use this in production, set GOOGLE_CALENDAR_REFRESH_TOKEN to: 1//0eXXXX...`
+4. Copy that token and add it to Jenkins as `google-calendar-refresh-token`
+
+The refresh token is long-lived and only expires if:
+- User revokes access in Google Account settings
+- Token is unused for 6 months
+- OAuth app credentials change
 
 ## Development
 
