@@ -163,8 +163,8 @@ pipeline {
                             export DOCKER_HOST=${DOCKER_HOST}
                             docker build --platform linux/arm64/v8 \
                                 -t ${env.TELEGRAM_MCP_IMAGE} \
-                                -f ./MCPS/telegram/Dockerfile \
-                                ./MCPS/telegram
+                                -f ./MCPS/Telegram/Dockerfile \
+                                ./MCPS/Telegram
                             """
                         }
                     }
