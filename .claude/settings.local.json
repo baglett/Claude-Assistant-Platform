@@ -10,9 +10,31 @@
       "WebFetch(domain:www.anthropic.com)",
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:github.com)",
+<<<<<<< HEAD
       "WebFetch(domain:coddingtonbear.github.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(Remove-Item -Path \"C:\\\\Users\\\\jaredb\\\\Documents\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\MCPS\\\\obsidian\\\\obsidian-mcp.md\" -Force)"
+=======
+      "Bash(Get-ChildItem -Path \"MCPS\" -Recurse)",
+      "Bash(Get-ChildItem -Path \"MCPS\" -Recurse -Force -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName, Mode)",
+      "Bash(Select-Object FullName, Length, LastWriteTime)",
+      "WebFetch(domain:docs.usemotion.com)",
+      "Bash(uv sync:*)",
+      "Bash(uv run ruff check:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(Get-ChildItem -Path \"MCPS\" -Directory)",
+      "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\MCPS\" -Recurse -Directory -Filter \"data\")",
+      "Bash(ForEach-Object { $_FullName })",
+      "WebFetch(domain:plugins.jenkins.io)",
+      "mcp__jenkins__getJob",
+      "mcp__jenkins__searchBuildLog",
+      "mcp__jenkins__getBuildLog"
+>>>>>>> main
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "jenkins"
+  ]
 }

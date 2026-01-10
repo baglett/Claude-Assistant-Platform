@@ -1,0 +1,79 @@
+# =============================================================================
+# Google Calendar MCP Server - Project Configuration
+# =============================================================================
+# MCP server providing Google Calendar API tools for the Claude Assistant Platform
+# =============================================================================
+
+[project]
+name = "google-calendar-mcp"
+version = "0.1.0"
+description = "MCP server providing Google Calendar API tools for the Claude Assistant Platform"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "Claude Assistant Platform" }
+]
+
+# -----------------------------------------------------------------------------
+# Dependencies
+# -----------------------------------------------------------------------------
+dependencies = [
+    "mcp>=1.9.0",
+    "httpx>=0.28.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "google-api-python-client>=2.150.0",
+    "google-auth-oauthlib>=1.2.0",
+    "google-auth-httplib2>=0.2.0",
+    "cryptography>=43.0.0",
+]
+
+# -----------------------------------------------------------------------------
+# Optional Dependencies
+# -----------------------------------------------------------------------------
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+]
+
+# -----------------------------------------------------------------------------
+# Entry Points
+# -----------------------------------------------------------------------------
+[project.scripts]
+google-calendar-mcp = "src.server:main"
+
+# -----------------------------------------------------------------------------
+# Build System
+# -----------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# -----------------------------------------------------------------------------
+# Hatch Build Configuration
+# -----------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# -----------------------------------------------------------------------------
+# Ruff Configuration
+# -----------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = []
+
+# -----------------------------------------------------------------------------
+# Pytest Configuration
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

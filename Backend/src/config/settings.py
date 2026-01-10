@@ -154,6 +154,58 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Motion MCP Server Settings
+    # -------------------------------------------------------------------------
+    motion_api_key: str = Field(
+        default="",
+        description="Motion API key for task management"
+    )
+    motion_mcp_host: str = Field(
+        default="motion-mcp",
+        description="Hostname of the Motion MCP server"
+    )
+    motion_mcp_port: int = Field(
+        default=8081,
+        description="Port of the Motion MCP server"
+    )
+    motion_enabled: bool = Field(
+        default=True,
+        description="Enable/disable Motion integration"
+    )
+
+    # -------------------------------------------------------------------------
+    # Google Calendar MCP Server Settings
+    # -------------------------------------------------------------------------
+    google_calendar_mcp_host: str = Field(
+        default="google-calendar-mcp",
+        description="Hostname of the Google Calendar MCP server"
+    )
+    google_calendar_mcp_port: int = Field(
+        default=8084,
+        description="Port of the Google Calendar MCP server"
+    )
+    google_calendar_enabled: bool = Field(
+        default=True,
+        description="Enable/disable Google Calendar integration"
+    )
+
+    # -------------------------------------------------------------------------
+    # Gmail MCP Server Settings
+    # -------------------------------------------------------------------------
+    gmail_mcp_host: str = Field(
+        default="gmail-mcp",
+        description="Hostname of the Gmail MCP server"
+    )
+    gmail_mcp_port: int = Field(
+        default=8085,
+        description="Port of the Gmail MCP server"
+    )
+    gmail_enabled: bool = Field(
+        default=True,
+        description="Enable/disable Gmail integration"
+    )
+
+    # -------------------------------------------------------------------------
     # Todo Executor Settings
     # -------------------------------------------------------------------------
     todo_executor_interval: int = Field(
@@ -277,6 +329,72 @@ class Settings(BaseSettings):
             and bool(self.telegram_dev_bot_token)
             and self.telegram_active_bot_token == self.telegram_dev_bot_token
         )
+
+    @property
+    def motion_mcp_url(self) -> str:
+        """
+        Construct the Motion MCP server URL.
+
+        Returns:
+            Full URL to the Motion MCP server.
+        """
+        return f"http://{self.motion_mcp_host}:{self.motion_mcp_port}"
+
+    @property
+    def motion_is_configured(self) -> bool:
+        """
+        Check if Motion integration is properly configured.
+
+        Returns:
+            True if Motion API key is set and Motion is enabled.
+        """
+        return bool(self.motion_api_key and self.motion_enabled)
+
+    @property
+    def google_calendar_mcp_url(self) -> str:
+        """
+        Construct the Google Calendar MCP server URL.
+
+        Returns:
+            Full URL to the Google Calendar MCP server.
+        """
+        return f"http://{self.google_calendar_mcp_host}:{self.google_calendar_mcp_port}"
+
+    @property
+    def google_calendar_is_configured(self) -> bool:
+        """
+        Check if Google Calendar integration is enabled.
+
+        Note: OAuth authentication is handled by the MCP server itself.
+        This just checks if the integration is enabled.
+
+        Returns:
+            True if Google Calendar is enabled.
+        """
+        return self.google_calendar_enabled
+
+    @property
+    def gmail_mcp_url(self) -> str:
+        """
+        Construct the Gmail MCP server URL.
+
+        Returns:
+            Full URL to the Gmail MCP server.
+        """
+        return f"http://{self.gmail_mcp_host}:{self.gmail_mcp_port}"
+
+    @property
+    def gmail_is_configured(self) -> bool:
+        """
+        Check if Gmail integration is enabled.
+
+        Note: OAuth authentication is handled by the MCP server itself.
+        This just checks if the integration is enabled.
+
+        Returns:
+            True if Gmail is enabled.
+        """
+        return self.gmail_enabled
 
     # -------------------------------------------------------------------------
     # Validators

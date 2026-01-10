@@ -163,6 +163,38 @@ uv run pytest --cov=src
 
 ### [Unreleased]
 
+#### Motion MCP Jenkins Integration
+
+**Jenkinsfile Updates:**
+- Added `motion-api-key` credential reference
+- Added Motion MCP image build stage (parallel)
+- Added Motion MCP image push stage (parallel)
+- Added Motion MCP container stop/remove in cleanup
+- Added Motion MCP container start stage (port 8082:8081)
+- Added Motion environment variables to backend container
+- Fixed Telegram MCP path casing (`./MCPS/telegram`)
+
+**Documentation:**
+- Created `DEPLOYMENT.md` - Comprehensive deployment reference
+  - Port configuration tables (prod and dev)
+  - Container reference with registry paths
+  - Network configuration details
+  - Volume mount documentation
+  - Jenkins credentials setup guide
+  - Environment variables reference
+  - Infrastructure endpoints
+  - Quick reference commands
+- Updated `README.md` with Jenkins CI/CD section
+- Updated project structure to include MCPS folder
+
+**Port Allocation:**
+| Service | Internal | External (Prod) |
+|---------|----------|-----------------|
+| Backend | 8000 | 8000 |
+| Frontend | 3000 | 3000 |
+| Telegram MCP | 8080 | 8081 |
+| Motion MCP | 8081 | 8082 |
+
 #### Todo Tracking System
 
 **Database Infrastructure:**

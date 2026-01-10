@@ -13,13 +13,16 @@ correct event loop (SelectorEventLoop) required by psycopg's async support.
 
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.agents.gmail_agent import GmailAgent
+from src.agents.google_calendar_agent import GoogleCalendarAgent
+from src.agents.motion_agent import MotionAgent
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.todo_agent import TodoAgent
 from src.api.routes import chat, health, todos
@@ -27,7 +30,6 @@ from src.config import get_settings
 from src.database import close_database, init_database
 from src.services.telegram import TelegramMessageHandler, TelegramPoller
 from src.services.todo_executor import TodoExecutor
-
 
 # -----------------------------------------------------------------------------
 # Logging Configuration
@@ -75,15 +77,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Database connection initialized")
 
     # Track background tasks and handlers for cleanup
-    telegram_poller_task: Optional[asyncio.Task] = None
-    telegram_handler: Optional[TelegramMessageHandler] = None
-    todo_executor: Optional[TodoExecutor] = None
-    todo_executor_task: Optional[asyncio.Task] = None
+    telegram_poller_task: asyncio.Task | None = None
+    telegram_handler: TelegramMessageHandler | None = None
+    todo_executor: TodoExecutor | None = None
+    todo_executor_task: asyncio.Task | None = None
 
     # -------------------------------------------------------------------------
     # Initialize Orchestrator Agent
     # -------------------------------------------------------------------------
-    orchestrator: Optional[OrchestratorAgent] = None
+    orchestrator: OrchestratorAgent | None = None
 
     if settings.anthropic_api_key:
         orchestrator = OrchestratorAgent(
@@ -98,6 +100,57 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
         orchestrator.register_agent(todo_agent)
         logger.info("Registered TodoAgent with orchestrator")
+
+        # Register Motion Agent if configured
+        if settings.motion_is_configured:
+            motion_agent = MotionAgent(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_model,
+                mcp_url=settings.motion_mcp_url,
+            )
+            orchestrator.register_agent(motion_agent)
+            logger.info(
+                f"Registered MotionAgent with orchestrator "
+                f"(MCP: {settings.motion_mcp_url})"
+            )
+        else:
+            logger.info(
+                "Motion integration not configured - MotionAgent not registered"
+            )
+
+        # Register Google Calendar Agent if configured
+        if settings.google_calendar_is_configured:
+            calendar_agent = GoogleCalendarAgent(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_model,
+                mcp_url=settings.google_calendar_mcp_url,
+            )
+            orchestrator.register_agent(calendar_agent)
+            logger.info(
+                f"Registered GoogleCalendarAgent with orchestrator "
+                f"(MCP: {settings.google_calendar_mcp_url})"
+            )
+        else:
+            logger.info(
+                "Google Calendar integration disabled - GoogleCalendarAgent not registered"
+            )
+
+        # Register Gmail Agent if configured
+        if settings.gmail_is_configured:
+            gmail_agent = GmailAgent(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_model,
+                mcp_url=settings.gmail_mcp_url,
+            )
+            orchestrator.register_agent(gmail_agent)
+            logger.info(
+                f"Registered GmailAgent with orchestrator "
+                f"(MCP: {settings.gmail_mcp_url})"
+            )
+        else:
+            logger.info(
+                "Gmail integration disabled - GmailAgent not registered"
+            )
 
         # Store orchestrator in app state for route access
         app.state.orchestrator = orchestrator

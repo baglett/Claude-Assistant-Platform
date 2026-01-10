@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "jenkins": {
+      "type": "sse",
+      "url": "http://your-jenkins-url:8080/mcp-server/sse",
+      "headers": {
+        "Authorization": "Basic YOUR_BASE64_ENCODED_CREDENTIALS"
+      }
+    }
+  }
+}
