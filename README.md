@@ -192,8 +192,10 @@ Before running the pipeline, configure the following credentials in Jenkins:
    | `motion-api-key` | Motion API key for task management | [app.usemotion.com/web/settings/api](https://app.usemotion.com/web/settings/api) |
    | `google-calendar-client-id` | Google OAuth Client ID | [Google Cloud Console](https://console.cloud.google.com/) |
    | `google-calendar-client-secret` | Google OAuth Client Secret | [Google Cloud Console](https://console.cloud.google.com/) |
+   | `google-calendar-refresh-token` | Google OAuth Refresh Token | Run MCP locally, complete OAuth |
    | `gmail-client-id` | Google OAuth Client ID (can reuse calendar) | [Google Cloud Console](https://console.cloud.google.com/) |
    | `gmail-client-secret` | Google OAuth Client Secret (can reuse calendar) | [Google Cloud Console](https://console.cloud.google.com/) |
+   | `gmail-refresh-token` | Google OAuth Refresh Token | Run MCP locally, complete OAuth |
 
 3. **Adding a credential step-by-step:**
    - Click "Add Credentials"
