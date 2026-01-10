@@ -20,6 +20,9 @@ secrets.json
 token.json
 *_token.json
 
+# MCP configuration (contains credentials)
+.mcp.json
+
 # MCP data directories (contain OAuth tokens)
 MCPS/*/data/
 
