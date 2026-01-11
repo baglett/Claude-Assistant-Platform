@@ -24,6 +24,9 @@ This document contains infrastructure configuration, port mappings, and deployme
 | Frontend | 3000 | 3000 | HTTP | Next.js web interface |
 | Telegram MCP | 8080 | 8081 | HTTP | Telegram Bot API tools |
 | Motion MCP | 8081 | 8082 | HTTP | Motion task management tools |
+| GitHub MCP | 8083 | 8083 | HTTP | GitHub Issues/PRs/Branches tools |
+| Google Calendar MCP | 8084 | 8084 | HTTP | Google Calendar tools |
+| Gmail MCP | 8085 | 8085 | HTTP | Gmail tools |
 | PostgreSQL | 5432 | 5432 | TCP | Database (external to Docker) |
 
 ### Local Development (docker-compose)
@@ -34,6 +37,9 @@ This document contains infrastructure configuration, port mappings, and deployme
 | Frontend | 3000 | 3000 | HTTP | Next.js web interface |
 | Telegram MCP | 8080 | — | HTTP | Internal only |
 | Motion MCP | 8081 | — | HTTP | Internal only |
+| GitHub MCP | 8083 | — | HTTP | Internal only |
+| Google Calendar MCP | 8084 | — | HTTP | Internal only |
+| Gmail MCP | 8085 | — | HTTP | Internal only |
 | PostgreSQL | 5432 | 5432 | TCP | Database container |
 
 ### Port Allocation Strategy
@@ -55,6 +61,9 @@ This document contains infrastructure configuration, port mappings, and deployme
 | `claude-assistant-frontend` | `claude-assistant-frontend` | `192.168.50.35:5000/claude-assistant-frontend` |
 | `claude-assistant-telegram-mcp` | `claude-assistant-telegram-mcp` | `192.168.50.35:5000/claude-assistant-telegram-mcp` |
 | `claude-assistant-motion-mcp` | `claude-assistant-motion-mcp` | `192.168.50.35:5000/claude-assistant-motion-mcp` |
+| `claude-assistant-github-mcp` | `claude-assistant-github-mcp` | `192.168.50.35:5000/claude-assistant-github-mcp` |
+| `claude-assistant-google-calendar-mcp` | `claude-assistant-google-calendar-mcp` | `192.168.50.35:5000/claude-assistant-google-calendar-mcp` |
+| `claude-assistant-gmail-mcp` | `claude-assistant-gmail-mcp` | `192.168.50.35:5000/claude-assistant-gmail-mcp` |
 
 ### Development Containers
 
@@ -64,6 +73,9 @@ This document contains infrastructure configuration, port mappings, and deployme
 | `claude-assistant-frontend` | `./Frontend` | `Frontend/Dockerfile` |
 | `claude-assistant-telegram-mcp` | `./MCPS/telegram` | `MCPS/telegram/Dockerfile` |
 | `claude-assistant-motion-mcp` | `./MCPS/motion` | `MCPS/motion/Dockerfile` |
+| `claude-assistant-github-mcp` | `./MCPS/github` | `MCPS/github/Dockerfile` |
+| `claude-assistant-google-calendar-mcp` | `./MCPS/google-calendar` | `MCPS/google-calendar/Dockerfile` |
+| `claude-assistant-gmail-mcp` | `./MCPS/gmail` | `MCPS/gmail/Dockerfile` |
 | `claude-assistant-db` | `postgres:16-alpine` | — |
 
 ---
@@ -87,6 +99,9 @@ Services communicate using container names as hostnames:
 | Backend | `claude-assistant-backend` | 8000 |
 | Telegram MCP | `claude-assistant-telegram-mcp` | 8080 |
 | Motion MCP | `claude-assistant-motion-mcp` | 8081 |
+| GitHub MCP | `claude-assistant-github-mcp` | 8083 |
+| Google Calendar MCP | `claude-assistant-google-calendar-mcp` | 8084 |
+| Gmail MCP | `claude-assistant-gmail-mcp` | 8085 |
 | Database | `db` (dev) / `192.168.50.35` (prod) | 5432 |
 
 ---
@@ -123,6 +138,13 @@ Configure in: **Jenkins → Manage Jenkins → Credentials → System → Global
 | `postgres-db-user` | Secret text | PostgreSQL username | Database config |
 | `postgres-db-password` | Secret text | PostgreSQL password | Database config |
 | `motion-api-key` | Secret text | Motion API key | [app.usemotion.com](https://app.usemotion.com/web/settings/api) |
+| `github-token` | Secret text | GitHub fine-grained PAT | [github.com/settings/tokens](https://github.com/settings/tokens?type=beta) |
+| `google-calendar-client-id` | Secret text | Google OAuth client ID | [Google Cloud Console](https://console.cloud.google.com/) |
+| `google-calendar-client-secret` | Secret text | Google OAuth client secret | Google Cloud Console |
+| `google-calendar-refresh-token` | Secret text | Google Calendar refresh token | OAuth flow |
+| `gmail-client-id` | Secret text | Gmail OAuth client ID | Google Cloud Console |
+| `gmail-client-secret` | Secret text | Gmail OAuth client secret | Google Cloud Console |
+| `gmail-refresh-token` | Secret text | Gmail refresh token | OAuth flow |
 
 ### Adding Credentials
 
@@ -184,6 +206,15 @@ Configure in: **Jenkins → Manage Jenkins → Credentials → System → Global
 | `MOTION_MCP_HOST` | No | `motion-mcp` | MCP server hostname |
 | `MOTION_MCP_PORT` | No | `8081` | MCP server port |
 
+### GitHub Integration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GITHUB_TOKEN` | Yes | — | Fine-grained PAT |
+| `GITHUB_ENABLED` | No | `true` | Enable GitHub |
+| `GITHUB_MCP_HOST` | No | `github-mcp` | MCP server hostname |
+| `GITHUB_MCP_PORT` | No | `8083` | MCP server port |
+
 ### Todo Executor
 
 | Variable | Required | Default | Description |
@@ -204,6 +235,9 @@ Configure in: **Jenkins → Manage Jenkins → Credentials → System → Global
 | Frontend | `http://192.168.50.35:3000` | `/` |
 | Telegram MCP | `http://192.168.50.35:8081` | `/health` |
 | Motion MCP | `http://192.168.50.35:8082` | `/health` |
+| GitHub MCP | `http://192.168.50.35:8083` | `/health` |
+| Google Calendar MCP | `http://192.168.50.35:8084` | `/health` |
+| Gmail MCP | `http://192.168.50.35:8085` | `/health` |
 | Docker Registry | `http://192.168.50.35:5000` | `/v2/` |
 
 ### Local Development
@@ -230,6 +264,9 @@ docker ps --filter "name=claude-assistant"
 docker logs claude-assistant-backend
 docker logs claude-assistant-telegram-mcp
 docker logs claude-assistant-motion-mcp
+docker logs claude-assistant-github-mcp
+docker logs claude-assistant-google-calendar-mcp
+docker logs claude-assistant-gmail-mcp
 docker logs claude-assistant-frontend
 ```
 
@@ -244,6 +281,15 @@ curl http://localhost:8081/health
 
 # Motion MCP
 curl http://localhost:8082/health
+
+# GitHub MCP
+curl http://localhost:8083/health
+
+# Google Calendar MCP
+curl http://localhost:8084/health
+
+# Gmail MCP
+curl http://localhost:8085/health
 ```
 
 ### Network Inspection
@@ -268,5 +314,8 @@ docker restart $(docker ps -q --filter "name=claude-assistant")
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-01-11 | Added GitHub MCP (port 8083) | Claude |
+| 2025-01-08 | Added Gmail MCP (port 8085) | Claude |
+| 2025-01-08 | Added Google Calendar MCP (port 8084) | Claude |
 | 2025-01-08 | Added Motion MCP (port 8082) | Claude |
 | 2025-01-08 | Initial deployment documentation | Claude |

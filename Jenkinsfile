@@ -2,7 +2,7 @@
 // Claude Assistant Platform - Jenkinsfile
 // =============================================================================
 // CI/CD Pipeline for deploying Backend, Frontend, and MCP Servers
-// (Telegram MCP, Motion MCP, Google Calendar MCP, Gmail MCP)
+// (Telegram MCP, Motion MCP, Google Calendar MCP, Gmail MCP, GitHub MCP)
 // =============================================================================
 
 pipeline {
@@ -32,6 +32,7 @@ pipeline {
         GMAIL_CLIENT_ID = credentials('gmail-client-id')
         GMAIL_CLIENT_SECRET = credentials('gmail-client-secret')
         GMAIL_REFRESH_TOKEN = credentials('gmail-refresh-token')
+        GITHUB_TOKEN = credentials('github-token')
 
         // Image Names
         BACKEND_IMAGE_NAME = 'claude-assistant-backend'
@@ -40,6 +41,7 @@ pipeline {
         MOTION_MCP_IMAGE_NAME = 'claude-assistant-motion-mcp'
         GOOGLE_CALENDAR_MCP_IMAGE_NAME = 'claude-assistant-google-calendar-mcp'
         GMAIL_MCP_IMAGE_NAME = 'claude-assistant-gmail-mcp'
+        GITHUB_MCP_IMAGE_NAME = 'claude-assistant-github-mcp'
 
         // Container Names
         BACKEND_CONTAINER = 'claude-assistant-backend'
@@ -48,6 +50,7 @@ pipeline {
         MOTION_MCP_CONTAINER = 'claude-assistant-motion-mcp'
         GOOGLE_CALENDAR_MCP_CONTAINER = 'claude-assistant-google-calendar-mcp'
         GMAIL_MCP_CONTAINER = 'claude-assistant-gmail-mcp'
+        GITHUB_MCP_CONTAINER = 'claude-assistant-github-mcp'
 
         // Network Name
         DOCKER_NETWORK = 'claude-assistant-network'
@@ -59,6 +62,7 @@ pipeline {
         MOTION_MCP_PORT = '8082'
         GOOGLE_CALENDAR_MCP_PORT = '8084'
         GMAIL_MCP_PORT = '8085'
+        GITHUB_MCP_PORT = '8083'
 
         // Database Configuration (uses existing PostgreSQL on Orange Pi)
         POSTGRES_HOST = '192.168.50.35'
@@ -86,6 +90,7 @@ pipeline {
                     env.MOTION_MCP_IMAGE = "${DOCKER_REGISTRY}/${MOTION_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
                     env.GOOGLE_CALENDAR_MCP_IMAGE = "${DOCKER_REGISTRY}/${GOOGLE_CALENDAR_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
                     env.GMAIL_MCP_IMAGE = "${DOCKER_REGISTRY}/${GMAIL_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
+                    env.GITHUB_MCP_IMAGE = "${DOCKER_REGISTRY}/${GITHUB_MCP_IMAGE_NAME}:${env.IMAGE_VERSION}"
 
                     echo "Deploying version: ${env.IMAGE_VERSION}"
                     echo "Backend Image: ${env.BACKEND_IMAGE}"
@@ -94,6 +99,7 @@ pipeline {
                     echo "Motion MCP Image: ${env.MOTION_MCP_IMAGE}"
                     echo "Google Calendar MCP Image: ${env.GOOGLE_CALENDAR_MCP_IMAGE}"
                     echo "Gmail MCP Image: ${env.GMAIL_MCP_IMAGE}"
+                    echo "GitHub MCP Image: ${env.GITHUB_MCP_IMAGE}"
                 }
             }
         }
@@ -208,6 +214,19 @@ pipeline {
                         }
                     }
                 }
+                stage('Build GitHub MCP') {
+                    steps {
+                        script {
+                            sh """
+                            export DOCKER_HOST=${DOCKER_HOST}
+                            docker build --platform linux/arm64/v8 \
+                                -t ${env.GITHUB_MCP_IMAGE} \
+                                -f ./MCPS/github/Dockerfile \
+                                ./MCPS/github
+                            """
+                        }
+                    }
+                }
             }
         }
 
@@ -258,6 +277,13 @@ pipeline {
                         }
                     }
                 }
+                stage('Push GitHub MCP') {
+                    steps {
+                        script {
+                            sh "docker push ${env.GITHUB_MCP_IMAGE}"
+                        }
+                    }
+                }
             }
         }
 
@@ -286,6 +312,9 @@ pipeline {
 
                     docker ps -f name=${GMAIL_MCP_CONTAINER} -q | xargs --no-run-if-empty docker container stop
                     docker container ls -a -f name=${GMAIL_MCP_CONTAINER} -q | xargs -r docker container rm
+
+                    docker ps -f name=${GITHUB_MCP_CONTAINER} -q | xargs --no-run-if-empty docker container stop
+                    docker container ls -a -f name=${GITHUB_MCP_CONTAINER} -q | xargs -r docker container rm
                     """
                 }
             }
@@ -413,6 +442,35 @@ pipeline {
         }
 
         // ---------------------------------------------------------------------
+        // Stage: Start GitHub MCP Container
+        // ---------------------------------------------------------------------
+        stage('Start GitHub MCP') {
+            steps {
+                script {
+                    sh """
+                    docker run -d \
+                        --name ${GITHUB_MCP_CONTAINER} \
+                        --network ${DOCKER_NETWORK} \
+                        --restart unless-stopped \
+                        -p ${GITHUB_MCP_PORT}:8083 \
+                        -e GITHUB_TOKEN=\${GITHUB_TOKEN} \
+                        -e GITHUB_MCP_HOST=0.0.0.0 \
+                        -e GITHUB_MCP_PORT=8083 \
+                        -e LOG_LEVEL=INFO \
+                        ${env.GITHUB_MCP_IMAGE}
+                    """
+
+                    // Wait for health check
+                    sh """
+                    echo "Waiting for GitHub MCP to be healthy..."
+                    sleep 10
+                    curl -f http://localhost:${GITHUB_MCP_PORT}/health || echo "Health check pending..."
+                    """
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------
         // Stage: Start Backend Container
         // ---------------------------------------------------------------------
         stage('Start Backend') {
@@ -452,6 +510,8 @@ pipeline {
                         -e GOOGLE_CALENDAR_MCP_PORT=8084 \
                         -e GMAIL_MCP_HOST=${GMAIL_MCP_CONTAINER} \
                         -e GMAIL_MCP_PORT=8085 \
+                        -e GITHUB_MCP_HOST=${GITHUB_MCP_CONTAINER} \
+                        -e GITHUB_MCP_PORT=8083 \
                         -e TODO_EXECUTOR_ENABLED=true \
                         -e TODO_EXECUTOR_INTERVAL=30 \
                         -e TODO_EXECUTOR_BATCH_SIZE=5 \
@@ -511,6 +571,7 @@ pipeline {
                     echo "Motion MCP:          http://192.168.50.35:${MOTION_MCP_PORT}"
                     echo "Google Calendar MCP: http://192.168.50.35:${GOOGLE_CALENDAR_MCP_PORT}"
                     echo "Gmail MCP:           http://192.168.50.35:${GMAIL_MCP_PORT}"
+                    echo "GitHub MCP:          http://192.168.50.35:${GITHUB_MCP_PORT}"
                     echo "============================================"
                     echo ""
                     echo "Running Containers:"
