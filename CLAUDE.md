@@ -17,6 +17,8 @@ A self-hosted AI assistant platform using the Claude API with an orchestrator pa
 - `DOCUMENTATION/ARCHITECTURE.md` - System architecture and data flows
 - `DOCUMENTATION/REQUIREMENTS.md` - Functional and non-functional requirements
 - `DOCUMENTATION/DEPLOYMENT.md` - Deployment configuration and ports
+- `DOCUMENTATION/TODO_Implementation.md` - Todo system implementation details
+- `DOCUMENTATION/apple-watch-shortcut.md` - Apple Watch Siri shortcut setup guide
 - `CHANGELOG.md` - Detailed change history
 
 ## Modular Rules
@@ -28,6 +30,7 @@ See `.claude/rules/README.md` for maintenance and update guidelines.
 |-----------|-------|
 | `project-overview.md` | Always loaded - architecture, key patterns |
 | `security.md` | Always loaded - secrets, OWASP |
+| `documentation.md` | Always loaded - when and how to update docs |
 | `backend/python.md` | `Backend/**/*.py` |
 | `backend/fastapi.md` | `Backend/src/api/**/*.py` |
 | `backend/agents.md` | `Backend/src/agents/**/*.py` |

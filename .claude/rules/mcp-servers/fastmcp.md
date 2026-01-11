@@ -209,3 +209,15 @@ services:
 4. **Health checks** - Required for orchestration
 5. **Environment variables** - Never hardcode credentials
 6. **Structured errors** - Return error objects, don't raise
+
+## Anti-Patterns
+
+- **DON'T** combine multiple services in one MCP server
+- **DON'T** hardcode API keys or credentials (use environment variables)
+- **DON'T** raise exceptions from tools (return structured error objects)
+- **DON'T** skip health check endpoints
+- **DON'T** skip HTTP fallback endpoints (needed for debugging)
+- **DON'T** use complex nested types in tool parameters (keep flat)
+- **DON'T** forget docstrings on tools (they become MCP descriptions)
+- **DON'T** expose MCP ports externally in production (internal network only)
+- **DON'T** skip validation on tool inputs (use Pydantic)

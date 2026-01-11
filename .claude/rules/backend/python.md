@@ -108,3 +108,15 @@ except SpecificError as e:
     logger.error("Operation failed", extra={"error": str(e), "context": ctx})
     raise DomainError("User-friendly message") from e
 ```
+
+## Anti-Patterns
+
+- **DON'T** use `pip` for package management (use `uv` exclusively)
+- **DON'T** use bare `except:` clauses (catch specific exceptions)
+- **DON'T** ignore type hints (use them on all function signatures)
+- **DON'T** use mutable default arguments (`def f(x=[])`)
+- **DON'T** use `from module import *` (import explicitly)
+- **DON'T** write functions without docstrings
+- **DON'T** use f-strings for logging (use `logger.info("msg", extra={})`)
+- **DON'T** use print statements (use proper logging)
+- **DON'T** use `os.path` (use `pathlib.Path` instead)

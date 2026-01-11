@@ -197,3 +197,14 @@ class TodoCreate(BaseModel):
 3. **Use ConfigDict** - Not class Config (Pydantic v2)
 4. **from_attributes=True** - For ORM compatibility
 5. **StrEnum for string enums** - Better serialization
+
+## Anti-Patterns
+
+- **DON'T** use class Config (use model_config = ConfigDict())
+- **DON'T** skip Field() descriptions (they become API docs)
+- **DON'T** use one model for create/update/response (separate concerns)
+- **DON'T** use regular Enum for string values (use StrEnum)
+- **DON'T** skip from_attributes when working with ORM models
+- **DON'T** use Optional without default value (use `| None = None`)
+- **DON'T** validate in __init__ (use @field_validator or @model_validator)
+- **DON'T** use mutable defaults (use Field(default_factory=...))

@@ -168,3 +168,13 @@ await execution_service.log_tool_call(
 3. **Log all executions** - for debugging and analytics
 4. **Handle errors gracefully** - return AgentResult with error field
 5. **Keep agents focused** - one domain per agent
+
+## Anti-Patterns
+
+- **DON'T** execute domain-specific logic in the orchestrator (delegate to sub-agents)
+- **DON'T** make direct API calls from agents (use MCP tools instead)
+- **DON'T** hardcode tool definitions (define in separate constants)
+- **DON'T** skip execution logging (all agent invocations must be tracked)
+- **DON'T** return raw exceptions (wrap in AgentResult with error field)
+- **DON'T** create multi-domain agents (keep focused on single responsibility)
+- **DON'T** bypass the tool calling loop (let Claude decide when complete)

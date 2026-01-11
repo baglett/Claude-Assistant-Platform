@@ -7,6 +7,7 @@ This directory contains modular rules for Claude Code that are automatically loa
 1. **Always-loaded rules** (no `paths` frontmatter): Apply to all files
    - `project-overview.md` - Architecture and key patterns
    - `security.md` - Security requirements
+   - `documentation.md` - When and how to update documentation
 
 2. **Path-specific rules** (with `paths` frontmatter): Only load when working on matching files
    - Example: `backend/agents.md` only loads when editing `Backend/src/agents/**/*.py`
@@ -18,6 +19,7 @@ rules/
 ├── README.md                 # This file
 ├── project-overview.md       # Always loaded
 ├── security.md               # Always loaded
+├── documentation.md          # Always loaded
 ├── backend/
 │   ├── python.md             # Backend/**/*.py
 │   ├── fastapi.md            # Backend/src/api/**/*.py
@@ -86,6 +88,57 @@ Your rules here...
 3. **Avoid duplication** - Global rules are in `~/.claude/CLAUDE.md`
 4. **Update when patterns change** - Keep rules in sync with codebase
 5. **Remove obsolete rules** - Delete rules for deprecated patterns
+
+## Maintaining Anti-Patterns
+
+Each rule file should have an `## Anti-Patterns` section listing common mistakes to avoid.
+
+### When to Add Anti-Patterns
+
+Add a new anti-pattern when you encounter:
+
+| Trigger | Example |
+|---------|---------|
+| **Bug caused by bad practice** | SQL injection from string concatenation |
+| **Code review feedback** | "Don't use `any` type here" |
+| **Repeated mistakes** | Same issue fixed multiple times |
+| **Tech debt identified** | Legacy pattern that shouldn't be replicated |
+| **Security vulnerability** | Hardcoded credentials discovered |
+| **Performance issue** | Sync operation blocking async code |
+
+### Anti-Pattern Format
+
+Use consistent `**DON'T**` format with correct approach in parentheses:
+
+```markdown
+## Anti-Patterns
+
+- **DON'T** [bad practice] ([correct approach])
+- **DON'T** use bare `except:` clauses (catch specific exceptions)
+- **DON'T** hardcode API keys (use environment variables)
+```
+
+### Adding a New Anti-Pattern
+
+1. **Identify the rule file** - Which domain does this anti-pattern belong to?
+2. **Check for duplicates** - Is it already documented elsewhere?
+3. **Write clearly** - State what NOT to do and what TO do instead
+4. **Keep it specific** - Avoid vague guidance like "don't write bad code"
+
+### Anti-Pattern Checklist
+
+Before adding, verify:
+- [ ] Specific enough to be actionable
+- [ ] Includes the correct approach in parentheses
+- [ ] Not already covered in another rule file
+- [ ] Relevant to this project (not just general advice)
+
+### Removing Anti-Patterns
+
+Remove an anti-pattern when:
+- The technology/pattern is no longer used in the project
+- It's been superseded by a better rule
+- It's too vague to be useful
 
 ## Troubleshooting
 

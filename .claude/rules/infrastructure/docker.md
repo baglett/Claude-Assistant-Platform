@@ -239,3 +239,15 @@ environment:
 4. **Named volumes** - For data persistence
 5. **Internal network** - For service isolation
 6. **No hardcoded secrets** - Use environment variables
+
+## Anti-Patterns
+
+- **DON'T** hardcode secrets in Dockerfile or docker-compose.yml
+- **DON'T** use `latest` tag for base images (pin versions)
+- **DON'T** run containers as root when avoidable
+- **DON'T** expose ports that don't need external access
+- **DON'T** skip health checks for services
+- **DON'T** use multiple RUN commands when they can be combined
+- **DON'T** copy entire directories when only specific files are needed
+- **DON'T** skip .dockerignore (exclude node_modules, __pycache__, etc.)
+- **DON'T** use ADD when COPY is sufficient (COPY is more explicit)

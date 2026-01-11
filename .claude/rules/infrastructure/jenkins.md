@@ -255,3 +255,15 @@ stage('Deploy') {
 4. **Health checks** - Verify after deployment
 5. **Clean up** - Remove old images and workspaces
 6. **Tagging** - Use build number and 'latest' tags
+
+## Anti-Patterns
+
+- **DON'T** hardcode credentials in Jenkinsfile (use credentials store)
+- **DON'T** run sequential stages when they can be parallel
+- **DON'T** deploy to production from non-main branches
+- **DON'T** skip health checks after container deployment
+- **DON'T** leave old images and workspaces (clean up after builds)
+- **DON'T** use only `latest` tag (also tag with build number)
+- **DON'T** skip error handling in pipeline stages
+- **DON'T** use `sh` for complex logic (extract to scripts)
+- **DON'T** duplicate stage logic (use shared libraries or functions)

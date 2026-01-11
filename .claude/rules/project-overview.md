@@ -48,5 +48,8 @@ See `.env.example` for the complete list. Key variables:
 
 - `DOCUMENTATION/ARCHITECTURE.md` - Detailed system architecture
 - `DOCUMENTATION/REQUIREMENTS.md` - Functional and non-functional requirements
-- `DOCUMENTATION/DEPLOYMENT.md` - Deployment configuration
+- `DOCUMENTATION/DEPLOYMENT.md` - Deployment configuration, ports, credentials
+- `DOCUMENTATION/TODO_Implementation.md` - Todo system implementation details
+- `DOCUMENTATION/apple-watch-shortcut.md` - Apple Watch Siri shortcut guide
 - `README.md` - Getting started guide
+- `CHANGELOG.md` - Detailed change history

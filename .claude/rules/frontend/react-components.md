@@ -193,3 +193,14 @@ import { ChatContainer, ChatInput } from "@/components";
 3. **"use client" only when needed** - Check if hooks are used
 4. **Zustand selectors** - Don't subscribe to entire store
 5. **DaisyUI classes** - For consistent UI patterns
+
+## Anti-Patterns
+
+- **DON'T** put multiple components in one file (one component per file)
+- **DON'T** use components without defining Props interface
+- **DON'T** subscribe to entire Zustand store (use selectors)
+- **DON'T** use `useEffect` for data fetching (use React Query or server components)
+- **DON'T** pass too many props (consider composition or context)
+- **DON'T** use anonymous functions in JSX for performance-critical handlers
+- **DON'T** skip memoization for expensive computations
+- **DON'T** use string refs (use `useRef` hook)
