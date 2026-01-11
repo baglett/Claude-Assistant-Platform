@@ -28,7 +28,9 @@
       "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\" -Recurse -Directory -Filter \"*mcp*\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\MCPS\" -Recurse -ErrorAction SilentlyContinue)",
-      "Bash(uv lock:*)"
+      "Bash(uv lock:*)",
+      "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\" -Recurse -Directory)",
+      "Bash(Where-Object { $_FullName -notmatch '\\\\.venv|\\\\.git|node_modules|__pycache__' })"
     ]
   },
   "enableAllProjectMcpServers": true,
