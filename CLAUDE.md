@@ -21,7 +21,8 @@ A self-hosted AI assistant platform using the Claude API with an orchestrator pa
 
 ## Modular Rules
 
-This project uses `.claude/rules/` for context-specific instructions:
+This project uses `.claude/rules/` for context-specific instructions.
+See `.claude/rules/README.md` for maintenance and update guidelines.
 
 | Rule File | Scope |
 |-----------|-------|
