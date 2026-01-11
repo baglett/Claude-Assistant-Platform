@@ -55,3 +55,15 @@ Before committing, verify:
 - [ ] Input validation on all user-facing endpoints
 - [ ] Error messages don't leak internal details
 - [ ] Logging doesn't include sensitive data
+
+## Anti-Patterns
+
+- **DON'T** commit `.env` files or any file containing real credentials
+- **DON'T** hardcode secrets in code, configs, or Dockerfiles
+- **DON'T** log tokens, passwords, API keys, or user credentials
+- **DON'T** construct SQL queries with string concatenation or f-strings
+- **DON'T** expose stack traces or internal error details to API clients
+- **DON'T** trust user input without validation at API boundaries
+- **DON'T** respond to unauthorized Telegram users (log silently)
+- **DON'T** expose unnecessary ports or mount sensitive host directories
+- **DON'T** run containers as root when avoidable

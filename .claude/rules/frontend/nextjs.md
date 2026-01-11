@@ -151,3 +151,14 @@ export async function createTodo(data: TodoCreate): Promise<Todo> {
 3. **TypeScript strict mode** - No `any` types
 4. **DaisyUI for components** - Consistent UI library
 5. **Zustand for state** - Simple, typed state management
+
+## Anti-Patterns
+
+- **DON'T** use Pages Router patterns (use App Router only)
+- **DON'T** add `"use client"` without needing client-side features
+- **DON'T** use `any` type (define proper TypeScript interfaces)
+- **DON'T** hardcode API URLs (use environment variables)
+- **DON'T** use inline styles (use Tailwind utility classes)
+- **DON'T** create components without TypeScript interfaces for props
+- **DON'T** use `@apply` excessively (extract to components instead)
+- **DON'T** mix multiple state management solutions

@@ -115,3 +115,14 @@ app = FastAPI(lifespan=lifespan)
 async def health_check() -> dict[str, str]:
     return {"status": "healthy", "service": "backend"}
 ```
+
+## Anti-Patterns
+
+- **DON'T** use global state or module-level variables (inject dependencies)
+- **DON'T** define routes without type hints on parameters and return values
+- **DON'T** expose internal error details in API responses
+- **DON'T** skip Pydantic validation on request/response bodies
+- **DON'T** use synchronous operations in async endpoints
+- **DON'T** hardcode configuration values (use Settings class)
+- **DON'T** forget to add new routers to `main.py`
+- **DON'T** create endpoints without proper HTTP status codes

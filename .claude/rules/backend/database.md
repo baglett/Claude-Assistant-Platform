@@ -155,3 +155,14 @@ class Todo(Base):
 3. **Parameterized queries only** - SQLAlchemy handles this
 4. **Index query patterns** - Add indexes for common filters
 5. **Use JSONB for flexibility** - For agent-specific metadata
+
+## Anti-Patterns
+
+- **DON'T** use synchronous database operations (use async sessions)
+- **DON'T** construct SQL with string concatenation or f-strings
+- **DON'T** forget to close sessions (use context managers)
+- **DON'T** create tables without indexes on query columns
+- **DON'T** store sensitive data unencrypted (passwords, tokens)
+- **DON'T** use `SELECT *` in queries (specify columns explicitly)
+- **DON'T** skip migrations for schema changes (use numbered SQL files)
+- **DON'T** hardcode database credentials (use environment variables)
