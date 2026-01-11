@@ -20,6 +20,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.agents.github_agent import GitHubAgent
 from src.agents.gmail_agent import GmailAgent
 from src.agents.google_calendar_agent import GoogleCalendarAgent
 from src.agents.motion_agent import MotionAgent
@@ -150,6 +151,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         else:
             logger.info(
                 "Gmail integration disabled - GmailAgent not registered"
+            )
+
+        # Register GitHub Agent if configured
+        if settings.github_is_configured:
+            github_agent = GitHubAgent(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_model,
+                mcp_url=settings.github_mcp_url,
+            )
+            orchestrator.register_agent(github_agent)
+            logger.info(
+                f"Registered GitHubAgent with orchestrator "
+                f"(MCP: {settings.github_mcp_url})"
+            )
+        else:
+            logger.info(
+                "GitHub integration disabled - GitHubAgent not registered"
             )
 
         # Store orchestrator in app state for route access

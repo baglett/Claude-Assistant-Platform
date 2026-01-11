@@ -206,6 +206,22 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # GitHub MCP Server Settings
+    # -------------------------------------------------------------------------
+    github_mcp_host: str = Field(
+        default="github-mcp",
+        description="Hostname of the GitHub MCP server"
+    )
+    github_mcp_port: int = Field(
+        default=8083,
+        description="Port of the GitHub MCP server"
+    )
+    github_enabled: bool = Field(
+        default=True,
+        description="Enable/disable GitHub integration"
+    )
+
+    # -------------------------------------------------------------------------
     # Todo Executor Settings
     # -------------------------------------------------------------------------
     todo_executor_interval: int = Field(
@@ -395,6 +411,29 @@ class Settings(BaseSettings):
             True if Gmail is enabled.
         """
         return self.gmail_enabled
+
+    @property
+    def github_mcp_url(self) -> str:
+        """
+        Construct the GitHub MCP server URL.
+
+        Returns:
+            Full URL to the GitHub MCP server.
+        """
+        return f"http://{self.github_mcp_host}:{self.github_mcp_port}"
+
+    @property
+    def github_is_configured(self) -> bool:
+        """
+        Check if GitHub integration is enabled.
+
+        Note: Token authentication is handled by the MCP server itself.
+        This just checks if the integration is enabled.
+
+        Returns:
+            True if GitHub is enabled.
+        """
+        return self.github_enabled
 
     # -------------------------------------------------------------------------
     # Validators
