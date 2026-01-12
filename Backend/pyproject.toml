@@ -30,9 +30,18 @@ dependencies = [
     "sqlalchemy>=2.0.36",
     "psycopg[binary,pool]>=3.2.0",
     "alembic>=1.14.0",
+    "pgvector>=0.3.6",
+
+    # Caching (Redis)
+    "redis[hiredis]>=5.2.0",
 
     # HTTP Client
     "httpx>=0.28.0",
+
+    # Routing (Phase 2: BM25 + Embeddings)
+    "rank-bm25>=0.2.2",
+    "openai>=1.58.0",
+    "numpy>=2.2.0",
 
     # Utilities
     "python-dateutil>=2.9.0",

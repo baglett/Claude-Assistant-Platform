@@ -24,6 +24,7 @@ This document contains infrastructure configuration, port mappings, and deployme
 |---------|---------------|-----------|----------|-------------|
 | Backend | 8000 | 8000 | HTTP | Main FastAPI backend |
 | Frontend | 3000 | 3000 | HTTP | Next.js web interface |
+| Redis | 6379 | 6379 | TCP | Routing cache and embeddings |
 | Telegram MCP | 8080 | 8081 | HTTP | Telegram Bot API tools |
 | Motion MCP | 8081 | 8082 | HTTP | Motion task management tools |
 | GitHub MCP | 8083 | 8083 | HTTP | GitHub Issues/PRs/Branches tools |
@@ -37,6 +38,7 @@ This document contains infrastructure configuration, port mappings, and deployme
 |---------|---------------|-----------|----------|-------------|
 | Backend | 8000 | 8000 | HTTP | Main FastAPI backend |
 | Frontend | 3000 | 3000 | HTTP | Next.js web interface |
+| Redis | 6379 | 6379 | TCP | Routing cache container |
 | Telegram MCP | 8080 | — | HTTP | Internal only |
 | Motion MCP | 8081 | — | HTTP | Internal only |
 | GitHub MCP | 8083 | — | HTTP | Internal only |
@@ -55,6 +57,7 @@ This document contains infrastructure configuration, port mappings, and deployme
   - 8085: Gmail MCP
 - **3000-3099**: Frontend services
 - **5432**: PostgreSQL database
+- **6379**: Redis cache
 
 ---
 
@@ -78,6 +81,7 @@ This document contains infrastructure configuration, port mappings, and deployme
 |----------------|---------------|------------|
 | `claude-assistant-backend` | `./Backend` | `Backend/Dockerfile` |
 | `claude-assistant-frontend` | `./Frontend` | `Frontend/Dockerfile` |
+| `claude-assistant-redis` | `redis:7-alpine` | — |
 | `claude-assistant-telegram-mcp` | `./MCPS/telegram` | `MCPS/telegram/Dockerfile` |
 | `claude-assistant-motion-mcp` | `./MCPS/motion` | `MCPS/motion/Dockerfile` |
 | `claude-assistant-github-mcp` | `./MCPS/github` | `MCPS/github/Dockerfile` |
@@ -104,6 +108,7 @@ Services communicate using container names as hostnames:
 | Service | Internal Hostname | Internal Port |
 |---------|-------------------|---------------|
 | Backend | `claude-assistant-backend` | 8000 |
+| Redis | `redis` (dev) / `redis` (prod) | 6379 |
 | Telegram MCP | `claude-assistant-telegram-mcp` | 8080 |
 | Motion MCP | `claude-assistant-motion-mcp` | 8081 |
 | GitHub MCP | `claude-assistant-github-mcp` | 8083 |
@@ -120,6 +125,7 @@ Services communicate using container names as hostnames:
 | Volume Name | Container | Mount Path | Purpose |
 |-------------|-----------|------------|---------|
 | `claude-assistant-pgdata` | `db` | `/var/lib/postgresql/data` | PostgreSQL data |
+| `claude-assistant-redis-data` | `redis` | `/data` | Redis persistence |
 | `claude-assistant-motion-data` | `motion-mcp` | `/app/data` | Rate limit database |
 | `claude-assistant-google-calendar-data` | `google-calendar-mcp` | `/app/data` | OAuth tokens |
 | `claude-assistant-gmail-data` | `gmail-mcp` | `/app/data` | OAuth tokens |
@@ -315,6 +321,24 @@ Add the following credentials to Jenkins:
 | `TODO_EXECUTOR_INTERVAL` | No | `30` | Check interval (seconds) |
 | `TODO_EXECUTOR_BATCH_SIZE` | No | `5` | Todos per cycle |
 
+### Redis Cache
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `REDIS_HOST` | No | `redis` | Redis hostname |
+| `REDIS_PORT` | No | `6379` | Redis port |
+| `REDIS_DB` | No | `0` | Redis database number |
+| `REDIS_PASSWORD` | No | — | Redis password (optional) |
+
+### Hybrid Router
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ROUTER_ENABLED` | No | `true` | Enable hybrid router |
+| `ROUTER_TIER1_ONLY` | No | `false` | Use only regex routing |
+| `ROUTER_CONFIDENCE_THRESHOLD` | No | `0.75` | Min confidence for bypass |
+| `OPENAI_API_KEY` | Phase 2 | — | OpenAI key for embeddings |
+
 ---
 
 ## Infrastructure Endpoints
@@ -446,6 +470,7 @@ docker ps --filter "name=claude-assistant"
 
 ```bash
 docker logs claude-assistant-backend
+docker logs claude-assistant-redis
 docker logs claude-assistant-telegram-mcp
 docker logs claude-assistant-motion-mcp
 docker logs claude-assistant-github-mcp
@@ -459,6 +484,9 @@ docker logs claude-assistant-frontend
 ```bash
 # Backend
 curl http://localhost:8000/health
+
+# Redis
+docker exec claude-assistant-redis redis-cli ping
 
 # Telegram MCP
 curl http://localhost:8081/health
@@ -510,6 +538,8 @@ docker restart $(docker ps -q --filter "name=claude-assistant")
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-01-11 | Added Redis cache (port 6379) for hybrid router | Claude |
+| 2026-01-11 | Added Hybrid Router environment variables | Claude |
 | 2025-01-11 | Added GitHub MCP (port 8083) | Claude |
 | 2025-01-11 | Consolidated from root DEPLOYMENT.md, removed duplicate | Claude |
 | 2025-01-08 | Added Google Calendar MCP (port 8084) and Gmail MCP (port 8085) | Claude |

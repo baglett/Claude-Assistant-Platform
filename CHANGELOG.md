@@ -6,6 +6,84 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Three-Tier Hybrid Router (Phase 1)
+
+**Goal:** Minimize latency by bypassing the orchestrator's LLM call for clear-intent queries.
+
+**Architecture:**
+- Tier 1 (Regex): Pattern matching for high-confidence routing (<1ms)
+- Tier 2 (Hybrid): BM25 + embedding similarity (10-50ms) - Phase 2
+- Tier 3 (LLM): Haiku fallback for ambiguous queries (200-500ms) - Phase 3
+
+**Database Changes:**
+- Created `Backend/database/migrations/005_create_routing_tables.sql`:
+  - Enabled `pgvector` extension for vector similarity search
+  - Created `routing` schema with 3 tables:
+    - `routing.agents` - Agent definitions with keywords, regex patterns, embeddings
+    - `routing.tools` - Tool definitions for future tool-level routing
+    - `routing.decisions` - Decision logging for analytics
+  - Seeded 5 agents: github, todo, email, calendar, motion
+  - Created ivfflat indexes for vector similarity search
+
+**New Files:**
+- `Backend/src/database/routing_models.py`:
+  - `RoutingAgent` - ORM model for agent routing data
+  - `RoutingTool` - ORM model for tool routing data (Phase 2+)
+  - `RoutingDecision` - ORM model for decision logging
+  - Uses `pgvector.sqlalchemy.Vector` for embedding columns
+- `Backend/src/services/cache_service.py`:
+  - Redis async caching for routing system
+  - Caches embeddings (1hr TTL), routing decisions (5min TTL), agent data (1hr TTL)
+  - Graceful degradation when Redis unavailable
+- `Backend/src/services/router_service.py`:
+  - Core 3-tier routing logic
+  - Tier 1 regex patterns for all 5 agents
+  - Placeholder methods for Tier 2/3 (Phase 2-3)
+  - Confidence scoring and decision logging
+- `Backend/src/agents/router.py`:
+  - `AgentRouter` class for orchestrator integration
+  - `RouterStats` for performance tracking
+  - Direct agent execution bypass when confident
+
+**Modified Files:**
+- `Backend/src/config/settings.py`:
+  - Added Redis settings (host, port, db, password)
+  - Added Router settings (enabled, tier1_only, confidence_threshold)
+  - Added OpenAI settings for embeddings (Phase 2)
+- `Backend/src/agents/orchestrator.py`:
+  - Router initialization on startup
+  - Router bypass logic in `_execute_task`
+  - Router stats and refresh methods
+- `Backend/src/api/main.py`:
+  - Router initialization after agent registration
+  - Cache service cleanup on shutdown
+- `docker-compose.yml`:
+  - Added Redis service (redis:7-alpine, port 6379)
+  - Added redis-data volume
+  - Added Redis environment variables to backend
+
+**New Dependencies:**
+- `redis[hiredis]>=5.2.0` - Async Redis client with hiredis
+- `pgvector>=0.3.6` - PostgreSQL vector operations
+- `rank-bm25>=0.2.2` - BM25 text matching (Phase 2)
+- `openai>=1.58.0` - Embedding generation (Phase 2)
+- `numpy>=2.2.0` - Vector operations
+
+**Configuration:**
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `ROUTER_ENABLED` | `true` | Enable/disable hybrid router |
+| `ROUTER_TIER1_ONLY` | `false` | Use only regex tier |
+| `ROUTER_CONFIDENCE_THRESHOLD` | `0.75` | Minimum confidence to bypass orchestrator |
+| `REDIS_HOST` | `redis` | Redis hostname |
+| `REDIS_PORT` | `6379` | Redis port |
+| `OPENAI_API_KEY` | - | Required for Phase 2 embeddings |
+
+**Expected Impact:**
+- Phase 1 (Regex): 60-70% of clear-intent queries bypass orchestrator
+- Phase 2 (BM25+Embedding): 80-90% bypass rate
+- Phase 3 (LLM fallback): 95%+ bypass rate
+
 ### Motion MCP Jenkins Integration
 
 **Jenkinsfile Updates:**

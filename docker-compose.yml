@@ -50,8 +50,20 @@ services:
       # Gmail MCP configuration
       - GMAIL_MCP_HOST=gmail-mcp
       - GMAIL_MCP_PORT=8085
+      # Redis cache configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      # Router settings
+      - ROUTER_ENABLED=${ROUTER_ENABLED:-true}
+      - ROUTER_TIER1_ONLY=${ROUTER_TIER1_ONLY:-false}
+      - ROUTER_CONFIDENCE_THRESHOLD=${ROUTER_CONFIDENCE_THRESHOLD:-0.75}
+      # OpenAI for embeddings (Phase 2)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       telegram-mcp:
         condition: service_healthy
@@ -78,7 +90,7 @@ services:
   # PostgreSQL Database
   # ---------------------------------------------------------------------------
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: claude-assistant-db
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-claude_assistant_platform}
@@ -201,6 +213,26 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
+  # Redis Cache Service
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: claude-assistant-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - claude-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
   # Frontend Service (Next.js)
   # ---------------------------------------------------------------------------
   frontend:
@@ -240,6 +272,8 @@ networks:
 volumes:
   pgdata:
     name: claude-assistant-pgdata
+  redis-data:
+    name: claude-assistant-redis-data
   motion-data:
     name: claude-assistant-motion-data
   google-calendar-data:

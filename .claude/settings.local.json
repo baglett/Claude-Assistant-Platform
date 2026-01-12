@@ -34,11 +34,14 @@
       "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\" -File)",
       "Bash(Select-Object Name, LastWriteTime)",
       "Bash(Format-Table -AutoSize)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\Backend\\\\src\\\\agents\" -Recurse -File)",
+      "Bash(done)"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "jenkins"
+    "jenkins",
+    "postgres"
   ]
 }
