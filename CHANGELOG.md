@@ -84,6 +84,65 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Phase 2 (BM25+Embedding): 80-90% bypass rate
 - Phase 3 (LLM fallback): 95%+ bypass rate
 
+### Three-Tier Hybrid Router (Phase 2)
+
+**Goal:** Implement BM25 + embedding similarity for semantic routing.
+
+**New Files:**
+- `Backend/src/services/embedding_service.py`:
+  - `EmbeddingService` class for OpenAI embedding generation
+  - Query embedding generation with Redis caching
+  - Batch embedding support for efficiency
+  - Cosine similarity computation via numpy
+  - `generate_agent_embeddings()` utility to populate database
+- `Backend/src/api/routes/router.py`:
+  - `POST /api/router/test` - Test routing without execution
+  - `POST /api/router/generate-embeddings` - Generate agent embeddings
+  - `GET /api/router/stats` - View router statistics
+  - `POST /api/router/refresh` - Reload router configuration
+
+**Modified Files:**
+- `Backend/src/services/router_service.py`:
+  - Full Tier 2 implementation with BM25 + embedding hybrid scoring
+  - BM25 index initialization from agent keywords/descriptions
+  - Agent embedding loading from database (pgvector)
+  - Hybrid scoring: 30% BM25 + 70% embedding similarity
+  - Confidence calculation based on score and gap to second-best
+- `Backend/src/api/main.py`:
+  - Registered router API routes at `/api/router`
+
+**Infrastructure Changes:**
+- `Home-Network/Orange_Pi/docker-compose-prod.yml`:
+  - Added shared Redis service for multi-application caching
+  - Database allocation documented (DB 0: Claude Assistant Platform)
+- `docker-compose.yml`:
+  - Removed local Redis (now uses shared Home-Network Redis)
+  - Updated `REDIS_HOST` to use external IP (192.168.50.35)
+- `.env.example`:
+  - Updated Redis documentation for shared infrastructure
+
+**API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/router/test` | POST | Test routing for a message |
+| `/api/router/generate-embeddings` | POST | Generate embeddings for all agents |
+| `/api/router/stats` | GET | View router statistics |
+| `/api/router/refresh` | POST | Reload router configuration |
+
+**Usage:**
+```bash
+# Generate embeddings (run once after setup)
+curl -X POST http://localhost:8000/api/router/generate-embeddings
+
+# Test routing
+curl -X POST http://localhost:8000/api/router/test \
+  -H "Content-Type: application/json" \
+  -d '{"message": "create a github issue for the login bug"}'
+
+# Check router stats
+curl http://localhost:8000/api/router/stats
+```
+
 ### Motion MCP Jenkins Integration
 
 **Jenkinsfile Updates:**

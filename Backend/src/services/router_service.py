@@ -33,12 +33,15 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from uuid import UUID
 
+import numpy as np
+from rank_bm25 import BM25Okapi
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.settings import get_settings
 from src.database import RoutingAgent, RoutingDecision, get_session
 from src.services.cache_service import CacheService, get_cache_service
+from src.services.embedding_service import EmbeddingService, get_embedding_service
 
 
 # -----------------------------------------------------------------------------
@@ -168,9 +171,13 @@ class RouterService:
     def __init__(self) -> None:
         """Initialize the router service."""
         self.cache: Optional[CacheService] = None
+        self.embedding_service: Optional[EmbeddingService] = None
         self.agents: list[dict[str, Any]] = []
         self.agent_names: list[str] = []
+        self.agent_embeddings: dict[str, list[float]] = {}
         self.compiled_patterns: dict[str, list[re.Pattern]] = {}
+        self.bm25: Optional[BM25Okapi] = None
+        self.bm25_corpus: list[str] = []
         self.settings = get_settings()
         self._initialized = False
 
@@ -178,7 +185,8 @@ class RouterService:
         """
         Initialize the router service.
 
-        Loads agents from database, compiles regex patterns, and connects to cache.
+        Loads agents from database, compiles regex patterns, initializes BM25,
+        loads embeddings, and connects to cache.
 
         Args:
             session: Optional database session.
@@ -189,15 +197,25 @@ class RouterService:
         # Connect to cache
         self.cache = await get_cache_service()
 
-        # Load agents from database
+        # Initialize embedding service
+        self.embedding_service = await get_embedding_service()
+
+        # Load agents from database (including embeddings)
         await self._load_agents(session)
 
         # Compile regex patterns
         self._compile_patterns()
 
+        # Initialize BM25 for keyword matching
+        self._initialize_bm25()
+
+        # Load agent embeddings
+        await self._load_embeddings(session)
+
         self._initialized = True
         logger.info(
-            f"Router service initialized with {len(self.agents)} agents"
+            f"Router service initialized with {len(self.agents)} agents, "
+            f"{len(self.agent_embeddings)} embeddings"
         )
 
     async def _load_agents(self, session: Optional[AsyncSession] = None) -> None:
@@ -267,6 +285,73 @@ class RouterService:
         logger.debug(
             f"Compiled patterns for {len(self.compiled_patterns)} agents"
         )
+
+    def _initialize_bm25(self) -> None:
+        """
+        Initialize BM25 index for keyword-based matching.
+
+        Creates a tokenized corpus from agent keywords and descriptions
+        for fast BM25 scoring.
+        """
+        if not self.agents:
+            return
+
+        # Build corpus from agent keywords and descriptions
+        self.bm25_corpus = []
+        for agent in self.agents:
+            # Combine keywords and description into a single document
+            keywords = agent.get("keywords", [])
+            description = agent.get("description", "")
+            doc = " ".join(keywords) + " " + description
+            self.bm25_corpus.append(doc.lower())
+
+        # Tokenize corpus (simple whitespace tokenization)
+        tokenized_corpus = [doc.split() for doc in self.bm25_corpus]
+
+        # Create BM25 index
+        if tokenized_corpus:
+            self.bm25 = BM25Okapi(tokenized_corpus)
+            logger.debug(f"Initialized BM25 with {len(tokenized_corpus)} documents")
+
+    async def _load_embeddings(
+        self, session: Optional[AsyncSession] = None
+    ) -> None:
+        """
+        Load agent embeddings from database.
+
+        Args:
+            session: Optional database session.
+        """
+        self.agent_embeddings = {}
+
+        # Load directly from database to get embeddings
+        if session:
+            await self._load_embeddings_from_db(session)
+        else:
+            async with get_session() as new_session:
+                await self._load_embeddings_from_db(new_session)
+
+    async def _load_embeddings_from_db(self, session: AsyncSession) -> None:
+        """
+        Load agent embeddings from database.
+
+        Args:
+            session: Database session.
+        """
+        query = (
+            select(RoutingAgent.name, RoutingAgent.embedding)
+            .where(RoutingAgent.enabled == True)
+            .where(RoutingAgent.embedding.isnot(None))
+        )
+        result = await session.execute(query)
+        rows = result.all()
+
+        for name, embedding in rows:
+            if embedding is not None:
+                # pgvector returns a list directly
+                self.agent_embeddings[name] = list(embedding)
+
+        logger.debug(f"Loaded {len(self.agent_embeddings)} agent embeddings")
 
     async def route(
         self,
@@ -414,23 +499,106 @@ class RouterService:
 
         Returns:
             RoutingResult with hybrid scores.
-
-        Note:
-            This is a placeholder for Phase 2 implementation.
         """
-        # TODO: Phase 2 - Implement BM25 + embedding scoring
-        # 1. Compute BM25 scores using agent keywords
-        # 2. Generate query embedding via OpenAI
-        # 3. Compute cosine similarity with agent embeddings
-        # 4. Combine: 0.3 * BM25 + 0.7 * embedding
-        # 5. Return if confidence > threshold
+        # Check if we have the necessary components
+        if not self.bm25 or not self.agents:
+            logger.debug("BM25 not initialized, skipping Tier 2")
+            return RoutingResult(agent=None, confidence=0.0, tier=2, scores={})
 
-        logger.debug("Tier 2 hybrid scoring not yet implemented (Phase 2)")
+        bm25_scores: dict[str, float] = {}
+        embedding_scores: dict[str, float] = {}
+        hybrid_scores: dict[str, float] = {}
+
+        # ---------------------------------------------------------------------
+        # Step 1: Compute BM25 scores
+        # ---------------------------------------------------------------------
+        tokenized_query = message.lower().split()
+        raw_bm25_scores = self.bm25.get_scores(tokenized_query)
+
+        # Normalize BM25 scores to 0-1 range
+        max_bm25 = max(raw_bm25_scores) if max(raw_bm25_scores) > 0 else 1.0
+        for i, agent in enumerate(self.agents):
+            bm25_scores[agent["name"]] = raw_bm25_scores[i] / max_bm25
+
+        # ---------------------------------------------------------------------
+        # Step 2: Compute embedding similarity scores
+        # ---------------------------------------------------------------------
+        if self.embedding_service and self.embedding_service.is_available and self.agent_embeddings:
+            # Generate query embedding
+            query_embedding = await self.embedding_service.get_embedding(message)
+
+            if query_embedding:
+                for agent_name, agent_embedding in self.agent_embeddings.items():
+                    similarity = EmbeddingService.cosine_similarity(
+                        query_embedding, agent_embedding
+                    )
+                    # Normalize to 0-1 range (cosine similarity is already -1 to 1)
+                    embedding_scores[agent_name] = (similarity + 1) / 2
+        else:
+            logger.debug("Embedding service not available, using BM25 only")
+
+        # ---------------------------------------------------------------------
+        # Step 3: Compute hybrid scores
+        # ---------------------------------------------------------------------
+        # Weights: 30% BM25, 70% embedding (if available)
+        bm25_weight = 0.3
+        embedding_weight = 0.7
+
+        for agent in self.agents:
+            name = agent["name"]
+            bm25_score = bm25_scores.get(name, 0.0)
+
+            if name in embedding_scores:
+                emb_score = embedding_scores[name]
+                hybrid_scores[name] = (bm25_weight * bm25_score) + (embedding_weight * emb_score)
+            else:
+                # Fall back to BM25 only if no embedding
+                hybrid_scores[name] = bm25_score
+
+        # ---------------------------------------------------------------------
+        # Step 4: Select best agent
+        # ---------------------------------------------------------------------
+        if not hybrid_scores:
+            return RoutingResult(agent=None, confidence=0.0, tier=2, scores={})
+
+        # Find the best agent
+        best_agent = max(hybrid_scores, key=hybrid_scores.get)
+        best_score = hybrid_scores[best_agent]
+
+        # Check if the best score meets the confidence threshold
+        # Also check the gap to second best to ensure clear winner
+        sorted_scores = sorted(hybrid_scores.values(), reverse=True)
+        second_best_score = sorted_scores[1] if len(sorted_scores) > 1 else 0.0
+        score_gap = best_score - second_best_score
+
+        # Compute confidence based on absolute score and gap
+        # Higher confidence if score is high AND gap to second is significant
+        confidence = best_score * (1 + score_gap)
+        confidence = min(1.0, confidence)  # Cap at 1.0
+
+        # Only route if confidence exceeds threshold
+        if confidence >= self.settings.router_confidence_threshold:
+            logger.debug(
+                f"Tier 2 selected agent '{best_agent}' with confidence {confidence:.2f} "
+                f"(BM25: {bm25_scores.get(best_agent, 0):.2f}, "
+                f"Embedding: {embedding_scores.get(best_agent, 0):.2f})"
+            )
+            return RoutingResult(
+                agent=best_agent,
+                confidence=confidence,
+                tier=2,
+                scores=hybrid_scores,
+            )
+
+        # Not confident enough, return scores for Tier 3
+        logger.debug(
+            f"Tier 2 not confident enough: best={best_agent} ({confidence:.2f})"
+        )
         return RoutingResult(
             agent=None,
-            confidence=0.0,
+            confidence=confidence,
             tier=2,
-            scores={},
+            scores=hybrid_scores,
         )
 
     async def _tier3_llm(self, message: str) -> RoutingResult:
@@ -534,7 +702,12 @@ class RouterService:
 
         await self._load_agents(session)
         self._compile_patterns()
-        logger.info(f"Refreshed router with {len(self.agents)} agents")
+        self._initialize_bm25()
+        await self._load_embeddings(session)
+        logger.info(
+            f"Refreshed router with {len(self.agents)} agents, "
+            f"{len(self.agent_embeddings)} embeddings"
+        )
 
 
 # -----------------------------------------------------------------------------
