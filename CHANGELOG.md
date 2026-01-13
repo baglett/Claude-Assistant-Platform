@@ -143,6 +143,55 @@ curl -X POST http://localhost:8000/api/router/test \
 curl http://localhost:8000/api/router/stats
 ```
 
+### Three-Tier Hybrid Router (Phase 3)
+
+**Goal:** Implement LLM fallback for ambiguous queries using Claude Haiku.
+
+**Modified Files:**
+- `Backend/src/services/router_service.py`:
+  - Full Tier 3 implementation with Claude Haiku classification
+  - Anthropic client initialization during router startup
+  - JSON-based classification prompt with agent descriptions
+  - Fallback text parsing if JSON extraction fails
+  - Graceful error handling for API failures
+
+**How It Works:**
+1. Tier 1 (regex) and Tier 2 (BM25 + embeddings) both fail to produce confident results
+2. Build classification prompt with all agent descriptions
+3. Call Claude Haiku with the user's message
+4. Parse JSON response to extract agent name and confidence
+5. Return routing result or fall back to orchestrator
+
+**Classification Prompt:**
+The LLM receives:
+- System prompt explaining the routing task
+- List of all available agents with descriptions
+- User's message to classify
+
+Response format:
+```json
+{
+  "agent": "github",
+  "confidence": 0.95,
+  "reason": "Request involves repository management"
+}
+```
+
+**Configuration:**
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `ROUTER_LLM_MODEL` | `claude-3-haiku-20240307` | Model for Tier 3 classification |
+
+**Expected Latency:**
+- Tier 1 (Regex): <1ms
+- Tier 2 (BM25 + Embedding): 10-50ms
+- Tier 3 (LLM): 200-500ms
+
+**Bypass Rates (Estimated):**
+- Tier 1: 60-70% of clear-intent queries
+- Tier 1+2: 80-90% of queries
+- Tier 1+2+3: 95%+ of queries
+
 ### Motion MCP Jenkins Integration
 
 **Jenkinsfile Updates:**

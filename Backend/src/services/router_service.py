@@ -26,6 +26,7 @@ Usage:
         response = await orchestrator.execute(context)
 """
 
+import json
 import logging
 import re
 import time
@@ -33,6 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from uuid import UUID
 
+import anthropic
 import numpy as np
 from rank_bm25 import BM25Okapi
 from sqlalchemy import select
@@ -172,6 +174,7 @@ class RouterService:
         """Initialize the router service."""
         self.cache: Optional[CacheService] = None
         self.embedding_service: Optional[EmbeddingService] = None
+        self.anthropic_client: Optional[anthropic.AsyncAnthropic] = None
         self.agents: list[dict[str, Any]] = []
         self.agent_names: list[str] = []
         self.agent_embeddings: dict[str, list[float]] = {}
@@ -199,6 +202,13 @@ class RouterService:
 
         # Initialize embedding service
         self.embedding_service = await get_embedding_service()
+
+        # Initialize Anthropic client for Tier 3 LLM fallback
+        if self.settings.anthropic_api_key:
+            self.anthropic_client = anthropic.AsyncAnthropic(
+                api_key=self.settings.anthropic_api_key
+            )
+            logger.debug("Anthropic client initialized for Tier 3 routing")
 
         # Load agents from database (including embeddings)
         await self._load_agents(session)
@@ -606,29 +616,129 @@ class RouterService:
         Tier 3: LLM-based classification.
 
         Uses Claude Haiku to classify ambiguous queries when Tier 1 and 2
-        don't produce confident results.
+        don't produce confident results. This is the fallback for queries
+        that don't match clear patterns or have low embedding similarity.
 
         Args:
             message: The user's message.
 
         Returns:
             RoutingResult with LLM classification.
-
-        Note:
-            This is a placeholder for Phase 3 implementation.
         """
-        # TODO: Phase 3 - Implement Haiku classification
-        # 1. Send message to Claude Haiku with classification prompt
-        # 2. Parse response to get agent name
-        # 3. Return with appropriate confidence
+        # Check if Anthropic client is available
+        if not self.anthropic_client:
+            logger.debug("Anthropic client not available, skipping Tier 3")
+            return RoutingResult(agent=None, confidence=0.0, tier=3, scores={})
 
-        logger.debug("Tier 3 LLM classification not yet implemented (Phase 3)")
-        return RoutingResult(
-            agent=None,
-            confidence=0.0,
-            tier=3,
-            scores={},
-        )
+        if not self.agents:
+            logger.debug("No agents loaded, skipping Tier 3")
+            return RoutingResult(agent=None, confidence=0.0, tier=3, scores={})
+
+        try:
+            # Build agent descriptions for the prompt
+            agent_descriptions = []
+            for agent in self.agents:
+                agent_descriptions.append(
+                    f"- **{agent['name']}**: {agent['description']}"
+                )
+            agents_text = "\n".join(agent_descriptions)
+            valid_agents = [a["name"] for a in self.agents]
+
+            # Classification prompt - designed for fast, accurate routing
+            system_prompt = """You are a routing classifier. Your job is to determine which specialized agent should handle a user's request.
+
+Respond with a JSON object containing:
+- "agent": the name of the best-matching agent (or "none" if no agent fits)
+- "confidence": your confidence level (0.0 to 1.0)
+- "reason": brief explanation (10 words max)
+
+Be decisive. If the request clearly relates to an agent's domain, route to it with high confidence.
+Only return "none" if the request is completely unrelated to all agents."""
+
+            user_prompt = f"""Available agents:
+{agents_text}
+
+User request: "{message}"
+
+Which agent should handle this request? Respond with JSON only."""
+
+            # Call Claude Haiku for fast classification
+            response = await self.anthropic_client.messages.create(
+                model=self.settings.router_llm_model,
+                max_tokens=150,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+
+            # Parse the response
+            response_text = response.content[0].text.strip()
+
+            # Try to extract JSON from the response
+            try:
+                # Handle potential markdown code blocks
+                if "```" in response_text:
+                    # Extract JSON from code block
+                    json_match = re.search(r"```(?:json)?\s*(.*?)\s*```", response_text, re.DOTALL)
+                    if json_match:
+                        response_text = json_match.group(1)
+
+                result = json.loads(response_text)
+                selected_agent = result.get("agent", "none").lower()
+                confidence = float(result.get("confidence", 0.5))
+                reason = result.get("reason", "")
+
+                # Validate the agent name
+                if selected_agent == "none" or selected_agent not in valid_agents:
+                    logger.debug(
+                        f"Tier 3 returned no valid agent: {selected_agent} "
+                        f"(reason: {reason})"
+                    )
+                    return RoutingResult(
+                        agent=None,
+                        confidence=0.0,
+                        tier=3,
+                        scores={},
+                    )
+
+                # Successful classification
+                logger.debug(
+                    f"Tier 3 classified as '{selected_agent}' with confidence "
+                    f"{confidence:.2f} (reason: {reason})"
+                )
+
+                return RoutingResult(
+                    agent=selected_agent,
+                    confidence=confidence,
+                    tier=3,
+                    scores={selected_agent: confidence},
+                )
+
+            except json.JSONDecodeError:
+                # Fallback: try to extract agent name from plain text
+                logger.warning(f"Failed to parse Tier 3 JSON response: {response_text}")
+
+                # Simple pattern matching on response
+                response_lower = response_text.lower()
+                for agent_name in valid_agents:
+                    if agent_name in response_lower:
+                        logger.debug(
+                            f"Tier 3 extracted agent '{agent_name}' from text response"
+                        )
+                        return RoutingResult(
+                            agent=agent_name,
+                            confidence=0.6,  # Lower confidence for text extraction
+                            tier=3,
+                            scores={agent_name: 0.6},
+                        )
+
+                return RoutingResult(agent=None, confidence=0.0, tier=3, scores={})
+
+        except anthropic.APIError as e:
+            logger.error(f"Tier 3 Anthropic API error: {e}")
+            return RoutingResult(agent=None, confidence=0.0, tier=3, scores={})
+        except Exception as e:
+            logger.error(f"Tier 3 unexpected error: {e}")
+            return RoutingResult(agent=None, confidence=0.0, tier=3, scores={})
 
     async def _log_decision(
         self,
