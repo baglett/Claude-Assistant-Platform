@@ -251,3 +251,48 @@ environment:
 - **DON'T** copy entire directories when only specific files are needed
 - **DON'T** skip .dockerignore (exclude node_modules, __pycache__, etc.)
 - **DON'T** use ADD when COPY is sufficient (COPY is more explicit)
+
+## Orange Pi ARM64 Requirements
+
+All Docker builds in this project MUST target ARM64 for deployment to the Orange Pi.
+
+### Build Command
+
+```bash
+# Always specify platform in Jenkinsfile
+docker build --platform linux/arm64/v8 -t $IMAGE .
+```
+
+### Base Image Compatibility
+
+| Image | ARM64 Support | Notes |
+|-------|---------------|-------|
+| `python:3.14-slim` | ✅ | Official multi-arch |
+| `node:20-alpine` | ✅ | Official multi-arch |
+| `postgres:16-alpine` | ✅ | Official multi-arch |
+| `alpine:3.19` | ✅ | Official multi-arch |
+
+Before using a base image, verify it has ARM64 support:
+```bash
+docker manifest inspect <image> | grep arm64
+```
+
+### Verifying Builds
+
+```bash
+# Build for ARM64
+docker buildx build --platform linux/arm64 -t test-image .
+
+# Verify architecture
+docker inspect test-image | jq '.[0].Architecture'
+# Should return: "arm64"
+```
+
+### Python Package Compatibility
+
+Some Python packages with C extensions need ARM64 wheels. Before adding:
+1. Check PyPI for ARM64 wheels
+2. Prefer pure Python packages when possible
+3. Test the build locally with `--platform linux/arm64`
+
+See `.claude/rules/infrastructure/orange-pi.md` for detailed ARM64 guidelines.

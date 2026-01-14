@@ -35,6 +35,7 @@
       "Bash(Select-Object Name, LastWriteTime)",
       "Bash(Format-Table -AutoSize)",
       "Bash(ls:*)",
+      "Bash(wc:*)",
       "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\Backend\\\\src\\\\agents\" -Recurse -File)",
       "Bash(done)"
     ]
