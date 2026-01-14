@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Jenkins Pipeline Parameters
+
+**Added:**
+- Added `TELEGRAM_ENABLED` boolean parameter to Jenkins pipeline
+- Allows disabling Telegram bot polling at build time without code changes
+- Useful for maintenance, development, or running instances without Telegram integration
+
+**Changed:**
+- `Jenkinsfile`: Added `parameters` block with `TELEGRAM_ENABLED` (default: `true`)
+- Backend container now uses `${params.TELEGRAM_ENABLED}` instead of hardcoded `true`
+
+**Documentation:**
+- Added "Jenkins Pipeline Parameters" section to `DOCUMENTATION/DEPLOYMENT.md`
+
+---
+
 ### Three-Tier Hybrid Router (Phase 1)
 
 **Goal:** Minimize latency by bypassing the orchestrator's LLM call for clear-intent queries.
