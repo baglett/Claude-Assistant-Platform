@@ -34,7 +34,8 @@
       "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\" -File)",
       "Bash(Select-Object Name, LastWriteTime)",
       "Bash(Format-Table -AutoSize)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(wc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
