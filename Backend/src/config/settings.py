@@ -222,6 +222,66 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Redis Cache Settings
+    # -------------------------------------------------------------------------
+    redis_host: str = Field(
+        default="redis",
+        description="Redis server hostname"
+    )
+    redis_port: int = Field(
+        default=6379,
+        description="Redis server port"
+    )
+    redis_db: int = Field(
+        default=0,
+        description="Redis database number"
+    )
+    redis_password: str = Field(
+        default="",
+        description="Redis password (optional)"
+    )
+
+    # -------------------------------------------------------------------------
+    # Router Settings
+    # -------------------------------------------------------------------------
+    router_enabled: bool = Field(
+        default=True,
+        description="Enable/disable the 3-tier hybrid router"
+    )
+    router_tier1_only: bool = Field(
+        default=False,
+        description="Use only Tier 1 (regex) routing, skip Tier 2/3"
+    )
+    router_confidence_threshold: float = Field(
+        default=0.75,
+        description="Minimum confidence to bypass orchestrator (0.0-1.0)"
+    )
+    router_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="OpenAI embedding model for Tier 2 routing"
+    )
+    router_embedding_dimensions: int = Field(
+        default=1536,
+        description="Embedding dimensions (must match model)"
+    )
+    router_cache_ttl_seconds: int = Field(
+        default=300,
+        description="TTL for routing decision cache (seconds)"
+    )
+    router_llm_model: str = Field(
+        default="claude-3-haiku-20240307",
+        description="Claude model for Tier 3 LLM classification"
+    )
+
+    # -------------------------------------------------------------------------
+    # OpenAI Settings (for embeddings)
+    # -------------------------------------------------------------------------
+    openai_api_key: str = Field(
+        default="",
+        description="OpenAI API key for embedding generation"
+    )
+
+    # -------------------------------------------------------------------------
     # Todo Executor Settings
     # -------------------------------------------------------------------------
     todo_executor_interval: int = Field(

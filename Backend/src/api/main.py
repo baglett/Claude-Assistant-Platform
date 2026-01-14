@@ -26,9 +26,11 @@ from src.agents.google_calendar_agent import GoogleCalendarAgent
 from src.agents.motion_agent import MotionAgent
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.todo_agent import TodoAgent
-from src.api.routes import chat, health, todos
+from src.api.routes import chat, health, router, todos
 from src.config import get_settings
-from src.database import close_database, init_database
+from src.database import close_database, init_database, get_session
+from src.services.cache_service import close_cache_service
+from src.services.embedding_service import ensure_agent_embeddings
 from src.services.telegram import TelegramMessageHandler, TelegramPoller
 from src.services.todo_executor import TodoExecutor
 
@@ -170,6 +172,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "GitHub integration disabled - GitHubAgent not registered"
             )
 
+        # ---------------------------------------------------------------------
+        # Initialize Hybrid Router (after all agents are registered)
+        # ---------------------------------------------------------------------
+        if settings.router_enabled:
+            logger.info("Initializing hybrid router for fast agent routing...")
+            async with get_session() as session:
+                await orchestrator.initialize_router(session)
+            logger.info("Hybrid router initialized")
+
+            # Check for missing agent embeddings and generate if needed
+            logger.info("Checking agent embeddings...")
+            embedding_results = await ensure_agent_embeddings()
+            if embedding_results:
+                generated = sum(1 for v in embedding_results.values() if v == "generated")
+                if generated > 0:
+                    # Refresh router to load new embeddings
+                    logger.info("Refreshing router to load new embeddings...")
+                    await orchestrator.refresh_router()
+        else:
+            logger.info("Hybrid router disabled by configuration")
+
         # Store orchestrator in app state for route access
         app.state.orchestrator = orchestrator
         logger.info("Orchestrator agent initialized with registered sub-agents")
@@ -285,6 +308,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await telegram_handler.close()
         logger.info("Telegram handler closed")
 
+    # Close Redis cache connection
+    await close_cache_service()
+    logger.info("Cache service closed")
+
     # Close database connection
     await close_database()
     logger.info("Database connection closed")
@@ -376,6 +403,9 @@ def create_app() -> FastAPI:
 
     # Todo routes
     app.include_router(todos.router, prefix="/api")
+
+    # Router routes (hybrid agent routing)
+    app.include_router(router.router, prefix="/api/router", tags=["router"])
 
     # -------------------------------------------------------------------------
     # Root Endpoint

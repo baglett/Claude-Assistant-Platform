@@ -40,6 +40,8 @@ from src.agents.base import (
     AgentResult,
     BaseAgent,
 )
+from src.agents.router import AgentRouter
+from src.config.settings import get_settings
 from src.database import AgentExecution, get_session
 from src.services.agent_execution_service import AgentExecutionService
 from src.services.chat_service import ChatService, get_chat_service
@@ -183,6 +185,8 @@ class OrchestratorAgent(BaseAgent):
         registry: Registry of available sub-agents.
         chat_service: Service for database chat operations.
         max_history_length: Maximum number of messages to include in context.
+        router: AgentRouter for fast routing bypassing LLM classification.
+        router_enabled: Whether the hybrid router is enabled.
 
     Example:
         orchestrator = OrchestratorAgent(api_key="sk-...")
@@ -220,6 +224,15 @@ class OrchestratorAgent(BaseAgent):
         # Initialize agent registry
         self.registry = AgentRegistry()
 
+        # Initialize router for fast bypassing of LLM classification
+        # Router uses the registry to look up agents, so it's created after registry
+        settings = get_settings()
+        self.router_enabled = settings.router_enabled
+        self.router: AgentRouter | None = None
+        if self.router_enabled:
+            self.router = AgentRouter(self.registry)
+            logger.info("Hybrid router enabled for fast agent routing")
+
         # Token tracking
         self._total_input_tokens = 0
         self._total_output_tokens = 0
@@ -253,6 +266,21 @@ class OrchestratorAgent(BaseAgent):
         """
         self.registry.register(agent)
         logger.info(f"Registered sub-agent: {agent.name}")
+
+    async def initialize_router(self, session: Optional[AsyncSession] = None) -> None:
+        """
+        Initialize the hybrid router for fast agent routing.
+
+        This must be called after all agents are registered and before
+        processing messages. It loads agent patterns from the database
+        and sets up caching.
+
+        Args:
+            session: Optional database session for loading agent data.
+        """
+        if self.router and self.router_enabled:
+            await self.router.initialize(session)
+            logger.info("Hybrid router initialized with registered agents")
 
     def get_agent(self, name: str) -> Optional[BaseAgent]:
         """
@@ -389,8 +417,9 @@ class OrchestratorAgent(BaseAgent):
         """
         Execute the orchestrator's task.
 
-        This method implements the tool calling loop for the orchestrator,
-        handling delegation to sub-agents as needed.
+        This method first tries the hybrid router for fast routing to agents,
+        bypassing the LLM classification when confident. If routing is not
+        confident, falls back to the full tool calling loop.
 
         Args:
             context: Execution context with task and chat info.
@@ -414,7 +443,51 @@ class OrchestratorAgent(BaseAgent):
         )
 
         try:
-            # Process with tool calling loop
+            # ----------------------------------------------------------------
+            # Try fast routing first (bypasses LLM classification)
+            # ----------------------------------------------------------------
+            if self.router and self.router_enabled:
+                await self.log_thinking(
+                    execution_service,
+                    execution,
+                    "Attempting fast routing via hybrid router...",
+                )
+
+                routed_result = await self.router.try_route(context.task, context)
+
+                if routed_result:
+                    # Router successfully handled the request
+                    router_stats = self.router.get_stats()
+                    await self.log_thinking(
+                        execution_service,
+                        execution,
+                        f"Fast routing successful! Bypassed LLM classification.\n"
+                        f"Router stats: {router_stats}",
+                    )
+
+                    return AgentResult(
+                        success=routed_result.success,
+                        message=routed_result.message,
+                        data={
+                            **(routed_result.data or {}),
+                            "routed_directly": True,
+                            "router_stats": router_stats,
+                            "tokens_used": 0,  # No orchestrator LLM tokens used
+                            "llm_calls": 0,
+                        },
+                        error=routed_result.error,
+                    )
+                else:
+                    # Router not confident, fall back to LLM
+                    await self.log_thinking(
+                        execution_service,
+                        execution,
+                        "Router not confident, falling back to LLM classification...",
+                    )
+
+            # ----------------------------------------------------------------
+            # Fall back to LLM-based tool calling loop
+            # ----------------------------------------------------------------
             response_text = await self._process_with_tools(
                 context=context,
                 execution_service=execution_service,
@@ -427,6 +500,7 @@ class OrchestratorAgent(BaseAgent):
                 data={
                     "tokens_used": self._total_input_tokens + self._total_output_tokens,
                     "llm_calls": self._llm_calls,
+                    "routed_directly": False,
                 },
             )
 
@@ -773,3 +847,44 @@ class OrchestratorAgent(BaseAgent):
             "message_count": len(messages),
             "registered_agents": [a["name"] for a in self.list_agents()],
         }
+
+    # -------------------------------------------------------------------------
+    # Router Management
+    # -------------------------------------------------------------------------
+    def get_router_stats(self) -> dict[str, Any]:
+        """
+        Get router performance statistics.
+
+        Returns statistics about routing decisions including:
+        - Total requests processed
+        - Tier hit counts (regex, hybrid, LLM)
+        - Cache hit rate
+        - Orchestrator fallback rate
+        - Average latency
+
+        Returns:
+            Dictionary with router performance metrics, or empty dict if
+            router is disabled.
+        """
+        if self.router and self.router_enabled:
+            return self.router.get_stats()
+        return {}
+
+    def reset_router_stats(self) -> None:
+        """Reset router performance statistics."""
+        if self.router:
+            self.router.reset_stats()
+
+    async def refresh_router(self, session: Optional[AsyncSession] = None) -> None:
+        """
+        Refresh router configuration.
+
+        Call this when agent configuration changes in the database
+        to reload patterns, keywords, and embeddings.
+
+        Args:
+            session: Optional database session for reloading agent data.
+        """
+        if self.router and self.router_enabled:
+            await self.router.refresh(session)
+            logger.info("Router configuration refreshed")

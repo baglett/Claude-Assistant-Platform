@@ -66,6 +66,14 @@ from src.database.models import (
     Todo,
 )
 
+# Routing models
+from src.database.routing_models import (
+    EMBEDDING_DIMENSIONS,
+    RoutingAgent,
+    RoutingDecision,
+    RoutingTool,
+)
+
 
 __all__ = [
     # DatabaseManager interface (new)
@@ -88,4 +96,9 @@ __all__ = [
     "TelegramSession",
     "Todo",
     "AgentExecution",
+    # Routing models
+    "RoutingAgent",
+    "RoutingTool",
+    "RoutingDecision",
+    "EMBEDDING_DIMENSIONS",
 ]

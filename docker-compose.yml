@@ -50,6 +50,16 @@ services:
       # Gmail MCP configuration
       - GMAIL_MCP_HOST=gmail-mcp
       - GMAIL_MCP_PORT=8085
+      # Redis cache configuration (external shared Redis on Home-Network)
+      - REDIS_HOST=${REDIS_HOST:-192.168.50.35}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_DB=${REDIS_DB:-0}
+      # Router settings
+      - ROUTER_ENABLED=${ROUTER_ENABLED:-true}
+      - ROUTER_TIER1_ONLY=${ROUTER_TIER1_ONLY:-false}
+      - ROUTER_CONFIDENCE_THRESHOLD=${ROUTER_CONFIDENCE_THRESHOLD:-0.75}
+      # OpenAI for embeddings (Phase 2)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
@@ -78,7 +88,7 @@ services:
   # PostgreSQL Database
   # ---------------------------------------------------------------------------
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: claude-assistant-db
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-claude_assistant_platform}
