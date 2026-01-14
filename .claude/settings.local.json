@@ -37,7 +37,8 @@
       "Bash(ls:*)",
       "Bash(wc:*)",
       "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\Backend\\\\src\\\\agents\" -Recurse -File)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(gh api:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

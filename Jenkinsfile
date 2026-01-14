@@ -8,6 +8,21 @@
 pipeline {
     agent any
 
+    // =========================================================================
+    // Pipeline Parameters
+    // =========================================================================
+    // These can be configured when triggering a build manually or via API.
+    // Access in pipeline as: params.PARAM_NAME
+    parameters {
+        // Toggle Telegram bot polling on/off
+        // Set to false to disable Telegram integration without rebuilding
+        booleanParam(
+            name: 'TELEGRAM_ENABLED',
+            defaultValue: false,
+            description: 'Enable/disable Telegram bot polling. Set to false to run without Telegram integration.'
+        )
+    }
+
     environment {
         // Docker Registry Configuration
         DOCKER_REGISTRY = '192.168.50.35:5000'
@@ -499,7 +514,7 @@ pipeline {
                         -e TELEGRAM_BOT_TOKEN=\${TELEGRAM_BOT_TOKEN} \
                         -e TELEGRAM_ALLOWED_USER_IDS=\${TELEGRAM_ALLOWED_USER_IDS} \
                         -e TELEGRAM_POLLING_TIMEOUT=30 \
-                        -e TELEGRAM_ENABLED=true \
+                        -e TELEGRAM_ENABLED=${params.TELEGRAM_ENABLED} \
                         -e TELEGRAM_MCP_HOST=${TELEGRAM_MCP_CONTAINER} \
                         -e TELEGRAM_MCP_PORT=8080 \
                         -e MOTION_API_KEY=\${MOTION_API_KEY} \

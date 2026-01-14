@@ -141,6 +141,21 @@ Services communicate using container names as hostnames:
 
 ---
 
+## Jenkins Pipeline Parameters
+
+Build parameters that can be configured when triggering a Jenkins build manually or via API.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `TELEGRAM_ENABLED` | Boolean | `false` | Enable/disable Telegram bot polling. Set to `true` to enable Telegram integration. |
+
+**Usage:**
+- **Manual builds**: Check/uncheck the parameter in Jenkins build UI
+- **API builds**: Pass `TELEGRAM_ENABLED=false` in the build parameters
+- **Use case**: Temporarily disable Telegram polling during maintenance or development without changing code
+
+---
+
 ## Jenkins Credentials
 
 ### Required Credentials
