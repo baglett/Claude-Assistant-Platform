@@ -98,22 +98,25 @@ function MarkdownLoading(): JSX.Element {
 
 /**
  * Component props type for markdown elements.
+ *
+ * These props are passed by ReactMarkdown to custom component renderers.
  */
-type MarkdownComponentProps = {
+interface MarkdownComponentProps {
+  /** CSS class name (e.g., "language-typescript" for code blocks) */
   className?: string;
+  /** Child elements to render */
   children?: React.ReactNode;
+  /** Link href for anchor elements */
   href?: string;
-  node?: unknown;
-};
+}
 
 /**
  * Custom components for ReactMarkdown rendering.
  *
- * Note: Type assertion needed due to react-markdown's strict component types
- * and dynamic import compatibility.
+ * Provides styled renderers for code blocks, links, headings, lists,
+ * blockquotes, tables, and other markdown elements.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const markdownComponents: any = {
+const markdownComponents: Record<string, React.ComponentType<MarkdownComponentProps>> = {
   // Custom code block rendering with copy button
   code: ({ className, children, ...props }: MarkdownComponentProps) => {
     const match = /language-(\w+)/.exec(className || "");

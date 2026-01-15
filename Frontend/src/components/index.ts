@@ -1,5 +1,16 @@
 /**
- * Component exports for the Claude Assistant Platform frontend.
+ * Centralized component exports for the Claude Assistant Platform.
+ *
+ * This index file provides a single import point for all components,
+ * enabling cleaner imports throughout the application.
+ *
+ * @example
+ * // Instead of multiple imports:
+ * import { ChatContainer } from "@/components/ChatContainer";
+ * import { ChatInput } from "@/components/ChatInput";
+ *
+ * // Use a single import:
+ * import { ChatContainer, ChatInput } from "@/components";
  */
 
 // Chat components
@@ -19,3 +30,6 @@ export { TodoList } from "./TodoList";
 export { TodoForm } from "./TodoForm";
 export { TodoFilters } from "./TodoFilters";
 export { TodoStats } from "./TodoStats";
+
+// Shared/utility components
+export { ConfirmModal } from "./ConfirmModal";

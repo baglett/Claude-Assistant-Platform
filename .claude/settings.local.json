@@ -43,7 +43,10 @@
       "Bash(Select-Object Name)",
       "Skill(frontend-dev)",
       "Bash(npm run build:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm run lint)",
+      "Bash(npx tsc:*)",
+      "Skill(local-dev)"
     ]
   },
   "enableAllProjectMcpServers": true,

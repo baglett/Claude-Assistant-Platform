@@ -16,6 +16,7 @@ import {
   getPriorityColor,
   getAgentLabel,
 } from "@/stores/todoStore";
+import { ConfirmModal } from "./ConfirmModal";
 import type { Todo } from "@/lib/api/todos";
 
 /**
@@ -51,30 +52,30 @@ function formatDate(dateString: string | null): string {
 export function TodoItem({ todo, onEdit }: TodoItemProps): JSX.Element {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const removeTodo = useTodoStore((state) => state.removeTodo);
   const cancelTodoItem = useTodoStore((state) => state.cancelTodoItem);
 
   /**
-   * Handle delete button click.
+   * Handle delete confirmation.
    */
-  const handleDelete = useCallback(async () => {
-    if (!confirm("Are you sure you want to delete this todo?")) return;
-
+  const handleConfirmDelete = useCallback(async () => {
     setIsDeleting(true);
     await removeTodo(todo.id);
     setIsDeleting(false);
+    setShowDeleteConfirm(false);
   }, [todo.id, removeTodo]);
 
   /**
-   * Handle cancel button click.
+   * Handle cancel confirmation.
    */
-  const handleCancel = useCallback(async () => {
-    if (!confirm("Are you sure you want to cancel this todo?")) return;
-
+  const handleConfirmCancel = useCallback(async () => {
     setIsCancelling(true);
     await cancelTodoItem(todo.id);
     setIsCancelling(false);
+    setShowCancelConfirm(false);
   }, [todo.id, cancelTodoItem]);
 
   /**
@@ -181,7 +182,7 @@ export function TodoItem({ todo, onEdit }: TodoItemProps): JSX.Element {
           {/* Cancel button */}
           {canCancel && (
             <button
-              onClick={handleCancel}
+              onClick={() => setShowCancelConfirm(true)}
               disabled={isCancelling}
               className="btn btn-ghost btn-xs text-warning"
               title="Cancel todo"
@@ -208,7 +209,7 @@ export function TodoItem({ todo, onEdit }: TodoItemProps): JSX.Element {
 
           {/* Delete button */}
           <button
-            onClick={handleDelete}
+            onClick={() => setShowDeleteConfirm(true)}
             disabled={isDeleting}
             className="btn btn-ghost btn-xs text-error"
             title="Delete todo"
@@ -233,6 +234,30 @@ export function TodoItem({ todo, onEdit }: TodoItemProps): JSX.Element {
           </button>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Todo"
+        message="Are you sure you want to delete this todo? This action cannot be undone."
+        confirmText="Delete"
+        variant="error"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      {/* Cancel confirmation modal */}
+      <ConfirmModal
+        isOpen={showCancelConfirm}
+        title="Cancel Todo"
+        message="Are you sure you want to cancel this todo? It will be marked as cancelled and won't be executed."
+        confirmText="Cancel Todo"
+        variant="warning"
+        isLoading={isCancelling}
+        onConfirm={handleConfirmCancel}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
     </div>
   );
 }

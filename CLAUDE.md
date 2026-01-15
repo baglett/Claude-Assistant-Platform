@@ -28,6 +28,7 @@ Use these slash commands for guided development:
 
 | Skill | Purpose |
 |-------|---------|
+| `/local-dev` | Run the full stack locally for development |
 | `/frontend-dev` | Frontend feature development with patterns |
 | `/new-agent` | Create new backend agent |
 | `/new-mcp` | Create new MCP server integration |

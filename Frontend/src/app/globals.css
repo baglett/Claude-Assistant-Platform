@@ -46,6 +46,17 @@
   animation: fadeInUp 0.3s ease-out;
 }
 
+/* Respect reduced motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+  }
+
+  .typing-dot {
+    animation: none;
+  }
+}
+
 /* Typing indicator animation */
 @keyframes bounce {
   0%, 60%, 100% {
