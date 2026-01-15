@@ -28,7 +28,8 @@ rules/
 │   └── pydantic-models.md    # Backend/src/models/**/*.py
 ├── frontend/
 │   ├── nextjs.md             # Frontend/**/*.{ts,tsx}
-│   └── react-components.md   # Frontend/src/components/**/*.tsx
+│   ├── react-components.md   # Frontend/src/components/**/*.tsx
+│   └── ui-ux-guidelines.md   # Frontend/**/*.tsx, Frontend/**/*.css
 ├── mcp-servers/
 │   └── fastmcp.md            # MCPS/**/*.py
 └── infrastructure/

@@ -90,12 +90,23 @@ function ErrorAlert({ message, onDismiss }: { message: string; onDismiss: () => 
 }
 
 /**
+ * Props for the ChatContainer component.
+ */
+interface ChatContainerProps {
+  /** Callback to toggle the mobile sidebar */
+  onToggleSidebar?: () => void;
+}
+
+/**
  * Main chat container component.
  *
  * Displays the message history with auto-scroll and the input component.
+ *
+ * @example
+ * <ChatContainer onToggleSidebar={handleToggle} />
  */
-export function ChatContainer() {
-  const { messages, error, setError, clearMessages } = useChatStore();
+export function ChatContainer({ onToggleSidebar }: ChatContainerProps) {
+  const { messages, error, setError } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -109,31 +120,47 @@ export function ChatContainer() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="navbar bg-base-200 border-b border-base-300 px-4">
-        <div className="flex-1">
-          <span className="text-xl font-bold">Claude Assistant</span>
-        </div>
-        <div className="flex-none gap-2">
-          {messages.length > 0 && (
+        <div className="flex-1 gap-2">
+          {/* Mobile sidebar toggle */}
+          {onToggleSidebar && (
             <button
-              onClick={clearMessages}
-              className="btn btn-ghost btn-sm"
-              title="Clear conversation"
+              onClick={onToggleSidebar}
+              className="btn btn-ghost btn-sm lg:hidden"
+              aria-label="Toggle sidebar"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
+                viewBox="0 0 20 20"
                 fill="currentColor"
                 className="w-5 h-5"
               >
                 <path
                   fillRule="evenodd"
-                  d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z"
+                  d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm0 10.5a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75ZM2 10a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 2 10Z"
                   clipRule="evenodd"
                 />
               </svg>
-              Clear
             </button>
           )}
+          <span className="text-xl font-bold">Claude Assistant</span>
+        </div>
+        <div className="flex-none">
+          {/* Todos link */}
+          <a href="/todos" className="btn btn-ghost btn-sm" title="View todos">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-5 h-5"
+            >
+              <path
+                fillRule="evenodd"
+                d="M6 4.75A.75.75 0 0 1 6.75 4h10.5a.75.75 0 0 1 0 1.5H6.75A.75.75 0 0 1 6 4.75ZM6 10a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H6.75A.75.75 0 0 1 6 10Zm0 5.25a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H6.75a.75.75 0 0 1-.75-.75ZM1.99 4.75a1 1 0 0 1 1-1H3a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1h-.01a1 1 0 0 1-1-1v-.01ZM1.99 15.25a1 1 0 0 1 1-1H3a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1h-.01a1 1 0 0 1-1-1v-.01ZM1.99 10a1 1 0 0 1 1-1H3a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1h-.01a1 1 0 0 1-1-1V10Z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Todos
+          </a>
         </div>
       </div>
 

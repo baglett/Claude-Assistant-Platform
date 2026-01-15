@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatMessage(BaseModel):
@@ -124,4 +124,64 @@ class ErrorResponse(BaseModel):
     details: Optional[dict] = Field(
         default=None,
         description="Additional error details"
+    )
+
+
+class ConversationSummary(BaseModel):
+    """
+    Summary of a conversation for list display.
+
+    Attributes:
+        id: Unique conversation identifier (UUID).
+        title: Auto-generated title from first user message.
+        created_on: When the conversation was created.
+        modified_on: When the conversation was last updated.
+        message_count: Total number of messages in the conversation.
+    """
+
+    id: UUID = Field(
+        description="Unique conversation identifier"
+    )
+    title: str = Field(
+        description="Auto-generated title from first user message"
+    )
+    created_on: datetime = Field(
+        description="When the conversation was created"
+    )
+    modified_on: datetime = Field(
+        description="When the conversation was last updated"
+    )
+    message_count: int = Field(
+        description="Total number of messages in the conversation"
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ConversationListResponse(BaseModel):
+    """
+    Paginated list of conversation summaries.
+
+    Attributes:
+        items: List of conversation summaries.
+        total: Total number of conversations.
+        page: Current page number (1-indexed).
+        page_size: Number of items per page.
+        has_next: Whether more pages exist.
+    """
+
+    items: list[ConversationSummary] = Field(
+        description="List of conversation summaries"
+    )
+    total: int = Field(
+        description="Total number of conversations"
+    )
+    page: int = Field(
+        description="Current page number (1-indexed)"
+    )
+    page_size: int = Field(
+        description="Number of items per page"
+    )
+    has_next: bool = Field(
+        description="Whether more pages exist"
     )

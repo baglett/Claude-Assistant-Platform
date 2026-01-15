@@ -83,7 +83,7 @@ export function ChatInput() {
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
             className="btn btn-primary btn-square"
-            title="Send message"
+            aria-label="Send message"
           >
             {isLoading ? (
               <span className="loading loading-spinner loading-sm" />

@@ -12,7 +12,7 @@ import logging
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import Chat, ChatMessage, get_session
@@ -230,6 +230,120 @@ class ChatService:
         messages = await self.get_messages(chat_id, limit, session)
         return [msg.to_api_format() for msg in messages]
 
+    async def list_conversations(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        session: Optional[AsyncSession] = None,
+    ) -> tuple[list[dict], int]:
+        """
+        List all conversations with summary information.
+
+        Returns conversations ordered by modified_on DESC (most recent first).
+        Title is extracted from the first user message content.
+
+        Args:
+            page: Page number (1-indexed).
+            page_size: Number of items per page.
+            session: Optional database session.
+
+        Returns:
+            Tuple of (list of conversation summary dicts, total count).
+        """
+        async def _list_conversations(sess: AsyncSession) -> tuple[list[dict], int]:
+            # Get total count
+            count_query = select(func.count(Chat.id))
+            count_result = await sess.execute(count_query)
+            total = count_result.scalar() or 0
+
+            # Get paginated chats ordered by modified_on DESC
+            offset = (page - 1) * page_size
+            chats_query = (
+                select(Chat)
+                .order_by(Chat.modified_on.desc())
+                .offset(offset)
+                .limit(page_size)
+            )
+            chats_result = await sess.execute(chats_query)
+            chats = list(chats_result.scalars().all())
+
+            # Build summaries with first message as title
+            summaries = []
+            for chat in chats:
+                # Get first user message for title
+                first_msg_query = (
+                    select(ChatMessage)
+                    .where(ChatMessage.chat_id == chat.id)
+                    .where(ChatMessage.role == "user")
+                    .order_by(ChatMessage.created_on.asc())
+                    .limit(1)
+                )
+                first_msg_result = await sess.execute(first_msg_query)
+                first_msg = first_msg_result.scalar_one_or_none()
+
+                # Generate title from first message (truncate to 60 chars)
+                if first_msg and first_msg.content:
+                    title = first_msg.content[:60]
+                    if len(first_msg.content) > 60:
+                        title += "..."
+                else:
+                    title = "New Conversation"
+
+                # Get message count
+                msg_count_query = (
+                    select(func.count(ChatMessage.id))
+                    .where(ChatMessage.chat_id == chat.id)
+                )
+                msg_count_result = await sess.execute(msg_count_query)
+                message_count = msg_count_result.scalar() or 0
+
+                summaries.append({
+                    "id": chat.id,
+                    "title": title,
+                    "created_on": chat.created_on,
+                    "modified_on": chat.modified_on,
+                    "message_count": message_count,
+                })
+
+            return summaries, total
+
+        if session:
+            return await _list_conversations(session)
+        else:
+            async with get_session() as session:
+                return await _list_conversations(session)
+
+    async def delete_chat(
+        self, chat_id: UUID, session: Optional[AsyncSession] = None
+    ) -> bool:
+        """
+        Delete a chat and all its messages.
+
+        Args:
+            chat_id: The chat's UUID.
+            session: Optional database session.
+
+        Returns:
+            True if the chat was deleted, False if not found.
+        """
+        async def _delete_chat(sess: AsyncSession) -> bool:
+            # Check if chat exists
+            chat = await sess.get(Chat, chat_id)
+            if not chat:
+                return False
+
+            # Delete the chat (messages will cascade delete via FK)
+            await sess.delete(chat)
+            await sess.flush()
+            logger.info(f"Deleted chat {chat_id}")
+            return True
+
+        if session:
+            return await _delete_chat(session)
+        else:
+            async with get_session() as session:
+                return await _delete_chat(session)
+
     async def clear_chat_messages(
         self, chat_id: UUID, session: Optional[AsyncSession] = None
     ) -> int:
@@ -243,8 +357,6 @@ class ChatService:
         Returns:
             Number of messages deleted.
         """
-        from sqlalchemy import delete
-
         async def _clear_messages(sess: AsyncSession) -> int:
             # First, clear all previous_message_id references to avoid FK issues
             update_query = (

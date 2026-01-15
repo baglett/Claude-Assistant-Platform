@@ -14,6 +14,17 @@ const nextConfig: NextConfig = {
 
   // Disable x-powered-by header for security
   poweredByHeader: false,
+
+  // Transpile ESM-only packages for compatibility
+  transpilePackages: [
+    "react-markdown",
+    "remark-gfm",
+    "rehype-highlight",
+    "unified",
+    "remark-parse",
+    "remark-rehype",
+    "hast-util-to-jsx-runtime",
+  ],
 };
 
 export default nextConfig;
