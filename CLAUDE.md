@@ -17,9 +17,24 @@ A self-hosted AI assistant platform using the Claude API with an orchestrator pa
 - `DOCUMENTATION/ARCHITECTURE.md` - System architecture and data flows
 - `DOCUMENTATION/REQUIREMENTS.md` - Functional and non-functional requirements
 - `DOCUMENTATION/DEPLOYMENT.md` - Deployment configuration and ports
+- `DOCUMENTATION/FEATURE_ROADMAP.md` - Frontend feature implementation roadmap
 - `DOCUMENTATION/TODO_Implementation.md` - Todo system implementation details
 - `DOCUMENTATION/apple-watch-shortcut.md` - Apple Watch Siri shortcut setup guide
 - `CHANGELOG.md` - Detailed change history
+
+## Development Skills
+
+Use these slash commands for guided development:
+
+| Skill | Purpose |
+|-------|---------|
+| `/local-dev` | Run the full stack locally for development |
+| `/frontend-dev` | Frontend feature development with patterns |
+| `/new-agent` | Create new backend agent |
+| `/new-mcp` | Create new MCP server integration |
+| `/add-tool` | Add tool to existing agent |
+| `/deploy` | Deploy to production via Jenkins |
+| `/check-deployment` | Verify deployment health |
 
 ## Modular Rules
 
@@ -38,6 +53,7 @@ See `.claude/rules/README.md` for maintenance and update guidelines.
 | `backend/pydantic-models.md` | `Backend/src/models/**/*.py` |
 | `frontend/nextjs.md` | `Frontend/**/*.{ts,tsx}` |
 | `frontend/react-components.md` | `Frontend/src/components/**/*.tsx` |
+| `frontend/ui-ux-guidelines.md` | `Frontend/**/*.tsx` - Design system, colors, spacing, accessibility |
 | `mcp-servers/fastmcp.md` | `MCPS/**/*.py` |
 | `infrastructure/docker.md` | `**/Dockerfile`, `**/docker-compose*.yml` |
 | `infrastructure/jenkins.md` | `Jenkinsfile` |
@@ -76,7 +92,20 @@ None currently tracked.
 
 ## Future Considerations
 
-- Voice message support via Telegram
-- Web dashboard for task visualization
+See `DOCUMENTATION/FEATURE_ROADMAP.md` for detailed frontend feature plans.
+
+**High Priority:**
+- Markdown message rendering with syntax highlighting
+- Todo management dashboard (leveraging existing `/api/todos`)
+- Conversation history sidebar
+- Dark mode toggle
+
+**Medium Priority:**
+- Agent execution transparency viewer
+- Real-time streaming responses
+- Message search functionality
+
+**Lower Priority:**
+- Voice input via Web Speech API
+- File upload support
 - Additional MCP integrations (Slack, Discord)
-- Multi-user support with authentication

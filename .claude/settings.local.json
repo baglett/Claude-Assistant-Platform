@@ -38,7 +38,15 @@
       "Bash(wc:*)",
       "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\Backend\\\\src\\\\agents\" -Recurse -File)",
       "Bash(done)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Skill(frontend-dev)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(npm run lint)",
+      "Bash(npx tsc:*)",
+      "Skill(local-dev)"
     ]
   },
   "enableAllProjectMcpServers": true,

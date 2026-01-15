@@ -9,11 +9,17 @@ import logging
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from src.agents import OrchestratorAgent
 from src.config import Settings, get_settings
-from src.models.chat import ChatRequest, ChatResponse, ErrorResponse
+from src.models.chat import (
+    ChatRequest,
+    ChatResponse,
+    ConversationListResponse,
+    ConversationSummary,
+    ErrorResponse,
+)
 from src.services.chat_service import get_chat_service
 
 
@@ -159,6 +165,57 @@ async def chat(
 
 
 @router.get(
+    "/conversations",
+    response_model=ConversationListResponse,
+    summary="List Conversations",
+    description="Get a paginated list of all chat sessions.",
+    dependencies=[Depends(verify_localhost)]
+)
+async def list_conversations(
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=50, description="Items per page"),
+) -> ConversationListResponse:
+    """
+    List all conversations with pagination.
+
+    Returns conversations ordered by most recently modified first.
+    Each conversation includes an auto-generated title from the first message.
+
+    Args:
+        page: Page number (1-indexed).
+        page_size: Number of items per page (max 50).
+
+    Returns:
+        Paginated list of conversation summaries.
+    """
+    chat_service = get_chat_service()
+
+    try:
+        summaries, total = await chat_service.list_conversations(
+            page=page,
+            page_size=page_size,
+        )
+
+        items = [ConversationSummary(**s) for s in summaries]
+        has_next = (page * page_size) < total
+
+        return ConversationListResponse(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            has_next=has_next,
+        )
+
+    except Exception as e:
+        logger.error(f"Error listing conversations: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list conversations: {str(e)}"
+        )
+
+
+@router.get(
     "/conversations/{chat_id}",
     summary="Get Conversation History",
     description="Retrieve the history of a specific chat session.",
@@ -201,4 +258,53 @@ async def get_conversation(chat_id: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve conversation: {str(e)}"
+        )
+
+
+@router.delete(
+    "/conversations/{chat_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Conversation",
+    description="Delete a chat session and all its messages.",
+    dependencies=[Depends(verify_localhost)]
+)
+async def delete_conversation(chat_id: str) -> None:
+    """
+    Delete a conversation and all its messages.
+
+    Args:
+        chat_id: The UUID of the chat session to delete.
+
+    Raises:
+        HTTPException: If the conversation is not found or deletion fails.
+    """
+    from uuid import UUID
+
+    chat_service = get_chat_service()
+
+    try:
+        # Parse the UUID
+        chat_uuid = UUID(chat_id)
+
+        # Delete the conversation
+        deleted = await chat_service.delete_chat(chat_uuid)
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Conversation {chat_id} not found."
+            )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid chat_id format. Must be a valid UUID."
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting conversation: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete conversation: {str(e)}"
         )

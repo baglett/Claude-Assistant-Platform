@@ -7,6 +7,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Syntax highlighting theme (github-dark compatible with dark theme) */
+@import "highlight.js/styles/github-dark.css";
+
 /* Custom scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -41,6 +44,17 @@
 
 .animate-fade-in-up {
   animation: fadeInUp 0.3s ease-out;
+}
+
+/* Respect reduced motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+  }
+
+  .typing-dot {
+    animation: none;
+  }
 }
 
 /* Typing indicator animation */
