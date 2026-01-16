@@ -25,8 +25,9 @@ from src.agents.gmail_agent import GmailAgent
 from src.agents.google_calendar_agent import GoogleCalendarAgent
 from src.agents.motion_agent import MotionAgent
 from src.agents.orchestrator import OrchestratorAgent
+from src.agents.resume_agent import ResumeAgent
 from src.agents.todo_agent import TodoAgent
-from src.api.routes import chat, health, router, todos
+from src.api.routes import chat, health, resume, router, todos
 from src.config import get_settings
 from src.database import close_database, init_database, get_session
 from src.services.cache_service import close_cache_service
@@ -170,6 +171,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         else:
             logger.info(
                 "GitHub integration disabled - GitHubAgent not registered"
+            )
+
+        # Register Resume Agent if Google Drive is configured
+        if settings.google_drive_is_configured:
+            resume_agent = ResumeAgent(
+                api_key=settings.anthropic_api_key,
+                model=settings.claude_model,
+                mcp_url=settings.google_drive_mcp_url,
+            )
+            orchestrator.register_agent(resume_agent)
+            logger.info(
+                f"Registered ResumeAgent with orchestrator "
+                f"(Google Drive MCP: {settings.google_drive_mcp_url})"
+            )
+        else:
+            logger.info(
+                "Google Drive integration disabled - ResumeAgent not registered"
             )
 
         # ---------------------------------------------------------------------
@@ -403,6 +421,9 @@ def create_app() -> FastAPI:
 
     # Todo routes
     app.include_router(todos.router, prefix="/api")
+
+    # Resume routes
+    app.include_router(resume.router, prefix="/api")
 
     # Router routes (hybrid agent routing)
     app.include_router(router.router, prefix="/api/router", tags=["router"])

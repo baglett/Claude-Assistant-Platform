@@ -50,6 +50,10 @@ services:
       # Gmail MCP configuration
       - GMAIL_MCP_HOST=gmail-mcp
       - GMAIL_MCP_PORT=8085
+      # Google Drive MCP configuration
+      - GOOGLE_DRIVE_MCP_HOST=google-drive-mcp
+      - GOOGLE_DRIVE_MCP_PORT=8087
+      - GOOGLE_DRIVE_ENABLED=${GOOGLE_DRIVE_ENABLED:-true}
       # Redis cache configuration (external shared Redis on Home-Network)
       - REDIS_HOST=${REDIS_HOST:-192.168.50.35}
       - REDIS_PORT=${REDIS_PORT:-6379}
@@ -211,6 +215,33 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
+  # Google Drive MCP Server
+  # ---------------------------------------------------------------------------
+  google-drive-mcp:
+    build:
+      context: ./MCPS/google-drive
+      dockerfile: Dockerfile
+    container_name: claude-assistant-google-drive-mcp
+    environment:
+      - GOOGLE_DRIVE_CLIENT_ID=${GOOGLE_DRIVE_CLIENT_ID}
+      - GOOGLE_DRIVE_CLIENT_SECRET=${GOOGLE_DRIVE_CLIENT_SECRET}
+      - GOOGLE_DRIVE_REFRESH_TOKEN=${GOOGLE_DRIVE_REFRESH_TOKEN}
+      - GOOGLE_DRIVE_TOKEN_PATH=/app/data/token.json
+      - GOOGLE_DRIVE_MCP_HOST=0.0.0.0
+      - GOOGLE_DRIVE_MCP_PORT=8087
+    volumes:
+      - google-drive-data:/app/data
+    networks:
+      - claude-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8087/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
   # Frontend Service (Next.js)
   # ---------------------------------------------------------------------------
   frontend:
@@ -256,3 +287,5 @@ volumes:
     name: claude-assistant-google-calendar-data
   gmail-data:
     name: claude-assistant-gmail-data
+  google-drive-data:
+    name: claude-assistant-google-drive-data

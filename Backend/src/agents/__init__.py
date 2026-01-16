@@ -39,6 +39,7 @@ from src.agents.base import (
     BaseAgent,
 )
 from src.agents.orchestrator import OrchestratorAgent
+from src.agents.resume_agent import ResumeAgent
 from src.agents.todo_agent import TodoAgent
 
 __all__ = [
@@ -50,5 +51,6 @@ __all__ = [
     "AgentRegistry",
     # Agents
     "OrchestratorAgent",
+    "ResumeAgent",
     "TodoAgent",
 ]

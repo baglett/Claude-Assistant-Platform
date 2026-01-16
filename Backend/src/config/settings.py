@@ -222,6 +222,22 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Google Drive MCP Server Settings
+    # -------------------------------------------------------------------------
+    google_drive_mcp_host: str = Field(
+        default="google-drive-mcp",
+        description="Hostname of the Google Drive MCP server"
+    )
+    google_drive_mcp_port: int = Field(
+        default=8087,
+        description="Port of the Google Drive MCP server"
+    )
+    google_drive_enabled: bool = Field(
+        default=True,
+        description="Enable/disable Google Drive integration"
+    )
+
+    # -------------------------------------------------------------------------
     # Redis Cache Settings
     # -------------------------------------------------------------------------
     redis_host: str = Field(
@@ -494,6 +510,29 @@ class Settings(BaseSettings):
             True if GitHub is enabled.
         """
         return self.github_enabled
+
+    @property
+    def google_drive_mcp_url(self) -> str:
+        """
+        Construct the Google Drive MCP server URL.
+
+        Returns:
+            Full URL to the Google Drive MCP server.
+        """
+        return f"http://{self.google_drive_mcp_host}:{self.google_drive_mcp_port}"
+
+    @property
+    def google_drive_is_configured(self) -> bool:
+        """
+        Check if Google Drive integration is enabled.
+
+        Note: OAuth authentication is handled by the MCP server itself.
+        This just checks if the integration is enabled.
+
+        Returns:
+            True if Google Drive is enabled.
+        """
+        return self.google_drive_enabled
 
     # -------------------------------------------------------------------------
     # Validators

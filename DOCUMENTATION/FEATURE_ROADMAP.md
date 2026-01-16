@@ -10,14 +10,42 @@ This document outlines features that can be implemented based on the existing co
 - Basic chat interface (ChatContainer, ChatInput, ChatMessage)
 - Zustand state management with localStorage persistence
 - DaisyUI component library with Tailwind CSS
-- Single page application (chat only)
+- Resume dashboard with profile, skills, job listings, and resume history
+- Todo dashboard with CRUD, filtering, and statistics
 
 ### Existing Backend Capabilities (Untapped by Frontend)
-- **Todo API** (`/api/todos`) - Full CRUD with filtering, priority, status
 - **Agent Execution Logs** (`agents.executions`) - Thinking, tool calls, responses
 - **Conversation History** (PostgreSQL) - Multiple conversations per user
 - **Router Analytics** - Routing decisions, confidence scores
 - **Health Checks** (`/health`) - Service status monitoring
+
+---
+
+## Completed Features
+
+### Resume Dashboard
+**Status:** Completed | **Route:** `/resume/*`
+
+Full-featured resume management system:
+- **Dashboard** (`/resume`) - Overview with stats, profile summary, quick actions
+- **Profile** (`/resume/profile`) - Personal info, contact details, professional links
+- **Skills** (`/resume/skills`) - CRUD with category/proficiency filtering, featured skills
+- **Experience** (`/resume/experience`) - Work history with achievements and skills used
+- **Jobs** (`/resume/jobs`) - Job listing scraper with favorite toggle and status tracking
+- **History** (`/resume/history`) - Generated resume gallery with match scores
+
+**Components:** ProfileForm, SkillList, ExperienceList, JobListingCard, ResumeCard
+**Stores:** profileStore, resumeStore
+**API Client:** `Frontend/src/lib/api/resume.ts`
+
+### Todo Dashboard
+**Status:** Completed | **Route:** `/todos`
+
+Task management with filtering and statistics:
+- Full CRUD operations
+- Status and priority filtering
+- Todo statistics display
+- Cancel and execute actions
 
 ---
 

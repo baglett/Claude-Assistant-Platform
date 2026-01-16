@@ -30,6 +30,7 @@ This document contains infrastructure configuration, port mappings, and deployme
 | GitHub MCP | 8083 | 8083 | HTTP | GitHub Issues/PRs/Branches tools |
 | Google Calendar MCP | 8084 | 8084 | HTTP | Google Calendar API tools |
 | Gmail MCP | 8085 | 8085 | HTTP | Gmail API tools |
+| Google Drive MCP | 8087 | 8087 | HTTP | Google Drive file storage tools |
 | PostgreSQL | 5432 | 5432 | TCP | Database (external to Docker) |
 
 ### Local Development (docker-compose)
@@ -44,6 +45,7 @@ This document contains infrastructure configuration, port mappings, and deployme
 | GitHub MCP | 8083 | — | HTTP | Internal only |
 | Google Calendar MCP | 8084 | — | HTTP | Internal only |
 | Gmail MCP | 8085 | — | HTTP | Internal only |
+| Google Drive MCP | 8087 | — | HTTP | Internal only |
 | PostgreSQL | 5432 | 5432 | TCP | Database container |
 
 ### Port Allocation Strategy
@@ -55,6 +57,7 @@ This document contains infrastructure configuration, port mappings, and deployme
   - 8083: GitHub MCP
   - 8084: Google Calendar MCP
   - 8085: Gmail MCP
+  - 8087: Google Drive MCP
 - **3000-3099**: Frontend services
 - **5432**: PostgreSQL database
 - **6379**: Redis cache

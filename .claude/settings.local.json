@@ -46,7 +46,8 @@
       "Bash(curl:*)",
       "Bash(npm run lint)",
       "Bash(npx tsc:*)",
-      "Skill(local-dev)"
+      "Skill(local-dev)",
+      "Bash(Get-ChildItem -Path \"L:\\\\Projects\\\\Repos\\\\Claude-Assistant-Platform\\\\MCPS\\\\gmail\\\\src\\\\gmail_mcp\" -Recurse -File -Filter \"*.py\")"
     ]
   },
   "enableAllProjectMcpServers": true,

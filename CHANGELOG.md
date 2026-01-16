@@ -6,6 +6,118 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Resume Generation Feature
+
+**Goal:** Enable users to manage their professional profile and generate tailored resumes for job applications.
+
+**Architecture:**
+```
+User → Telegram/API → Orchestrator → ResumeAgent → Services → Database
+                                           ↓
+                                    Google Drive MCP (for storage)
+```
+
+**Database Changes:**
+- Created `Backend/database/migrations/006_create_resume_tables.sql`:
+  - Created `resume` schema with 7 tables:
+    - `user_profiles` - Personal info, contact details, links, summary
+    - `skills` - Skills with category, proficiency, years of experience
+    - `work_experiences` - Job history with achievements, technologies
+    - `education` - Degrees, institutions, coursework
+    - `certifications` - Professional certifications with expiry tracking
+    - `job_listings` - Scraped job descriptions and requirements
+    - `generated_resumes` - Resume records with Drive file references
+
+**New Backend Services:**
+- `Backend/src/services/resume/`:
+  - `profile_service.py` - Profile CRUD and statistics
+  - `skill_service.py` - Skill management with category filtering
+  - `work_experience_service.py` - Work history management
+  - `education_service.py` - Education records management
+  - `certification_service.py` - Certification tracking
+  - `job_listing_service.py` - Job listing CRUD with search
+  - `generated_resume_service.py` - Resume generation records
+- `Backend/src/services/scraper/`:
+  - `parsers.py` - Site-specific parsers (LinkedIn, Indeed, Greenhouse, Lever, Generic)
+  - `service.py` - Job scraping with Claude fallback for unknown sites
+
+**New MCP Server:**
+- `MCPS/google-drive/` - Google Drive integration:
+  - OAuth 2.0 authentication with refresh token support
+  - File upload, list, delete, folder management
+  - Shareable link generation
+  - FastMCP tools for resume upload
+
+**New Agent:**
+- `Backend/src/agents/resume_agent.py`:
+  - 30+ tools for profile, skills, experience, education, certifications
+  - Job scraping from URLs with site-specific parsers
+  - Skill matching and scoring against job requirements
+  - Resume generation with Google Drive upload
+
+**API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/PUT | `/api/resume/profile` | Profile management |
+| GET/POST/PATCH/DELETE | `/api/resume/skills` | Skills CRUD |
+| GET/POST/PATCH/DELETE | `/api/resume/experience` | Work experience CRUD |
+| GET/POST/PATCH/DELETE | `/api/resume/education` | Education CRUD |
+| GET/POST/PATCH/DELETE | `/api/resume/certifications` | Certifications CRUD |
+| GET/POST | `/api/resume/jobs` | Job listings management |
+| POST | `/api/resume/jobs/scrape` | Scrape job from URL |
+| GET/POST/DELETE | `/api/resume/generated` | Generated resumes |
+
+**Configuration:**
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `GOOGLE_DRIVE_ENABLED` | `true` | Enable Google Drive integration |
+| `GOOGLE_DRIVE_MCP_HOST` | `google-drive-mcp` | Drive MCP hostname |
+| `GOOGLE_DRIVE_MCP_PORT` | `8087` | Drive MCP port |
+
+**New Dependencies:**
+- `beautifulsoup4>=4.12.0` - HTML parsing for job scraping
+- `lxml>=5.3.0` - Fast XML/HTML parser
+- `weasyprint>=63.0` - PDF generation (future)
+- `python-docx>=1.1.0` - DOCX generation (future)
+- `google-api-python-client>=2.150.0` - Google Drive API
+- `google-auth-oauthlib>=1.2.0` - Google OAuth
+
+**Frontend Implementation:**
+- `Frontend/src/lib/api/resume.ts` - API client with:
+  - Type definitions for all resume models (Profile, Skill, WorkExperience, Education, Certification, JobListing, GeneratedResume)
+  - CRUD functions for all resume entities
+  - Job scraping function
+
+- `Frontend/src/stores/profileStore.ts` - Zustand store for:
+  - Profile state management
+  - Skills CRUD with category/proficiency filtering
+  - Work experience management
+  - Education records management
+  - Certification tracking
+  - Helper functions for labels and colors
+
+- `Frontend/src/stores/resumeStore.ts` - Zustand store for:
+  - Job listing state with filters and pagination
+  - Generated resume management
+  - Helper functions for status labels and salary formatting
+
+- `Frontend/src/components/resume/`:
+  - `ProfileForm.tsx` - Full profile editor with personal info, location, links, summary
+  - `SkillList.tsx` - Skill CRUD with filtering, add/edit forms, delete confirmation
+  - `ExperienceList.tsx` - Work history timeline with achievements and skills
+  - `JobListingCard.tsx` - Job card with skills, salary, favorite toggle
+  - `ResumeCard.tsx` - Resume card with match scores and Drive link
+
+- `Frontend/src/app/resume/`:
+  - `/resume` - Dashboard with stats, quick actions, profile summary
+  - `/resume/profile` - Profile editing page
+  - `/resume/skills` - Skills management page
+  - `/resume/experience` - Work experience management page
+  - `/resume/jobs` - Job listings with scrape form
+  - `/resume/history` - Generated resumes gallery
+
+---
+
 ### Jenkins Pipeline Parameters
 
 **Added:**

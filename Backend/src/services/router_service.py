@@ -140,6 +140,20 @@ AGENT_PATTERNS: dict[str, list[str]] = {
         r"\bmotion\b",
         r"\bmotion.{0,20}(task|project|workspace)\b",
     ],
+    "resume": [
+        r"\b(resume|resumes|cv)\b",
+        r"\b(job\s*listing|job\s*description|job\s*posting)\b",
+        r"\b(skill|skills)\b",
+        r"\b(work\s*experience|employment|work\s*history)\b",
+        r"\b(education|degree|university|college)\b",
+        r"\b(certification|certifications)\b",
+        r"\b(profile|my\s*profile)\b",
+        r"\b(tailor|tailored|customize).{0,20}(resume|cv)\b",
+        r"\b(generate|create).{0,20}(resume|cv)\b",
+        r"\b(apply|applying).{0,20}(job|position)\b",
+        r"\b(scrape|extract).{0,20}(job|listing)\b",
+        r"\b(match).{0,20}(skills?|job)\b",
+    ],
 }
 
 
