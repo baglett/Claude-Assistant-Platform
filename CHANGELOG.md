@@ -116,6 +116,19 @@ User → Telegram/API → Orchestrator → ResumeAgent → Services → Database
   - `/resume/jobs` - Job listings with scrape form
   - `/resume/history` - Generated resumes gallery
 
+**Known Limitations:**
+- Resume generation currently outputs text-based format only
+- PDF/DOCX document generation not yet implemented
+- Single default template (no custom template selection)
+
+**Planned Enhancements (see FEATURE_ROADMAP.md Phase 2.5):**
+- PDF/DOCX resume generation with professional styling
+- Multiple resume templates (Modern, Classic, Minimal, Technical, Creative)
+- Real-time resume preview during editing
+- ATS (Applicant Tracking System) score analysis
+- Bulk resume generation for multiple job listings
+- AI-powered resume feedback and improvement suggestions
+
 ---
 
 ### Jenkins Pipeline Parameters

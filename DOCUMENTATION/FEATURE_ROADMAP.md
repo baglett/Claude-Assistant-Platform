@@ -24,7 +24,7 @@ This document outlines features that can be implemented based on the existing co
 ## Completed Features
 
 ### Resume Dashboard
-**Status:** Completed | **Route:** `/resume/*`
+**Status:** Completed (Core) | **Route:** `/resume/*`
 
 Full-featured resume management system:
 - **Dashboard** (`/resume`) - Overview with stats, profile summary, quick actions
@@ -37,6 +37,12 @@ Full-featured resume management system:
 **Components:** ProfileForm, SkillList, ExperienceList, JobListingCard, ResumeCard
 **Stores:** profileStore, resumeStore
 **API Client:** `Frontend/src/lib/api/resume.ts`
+
+**Partially Complete:**
+- Resume generation outputs text-based format only (PDF/DOCX generation not implemented)
+- Single default template (no custom template selection)
+
+**See Also:** Phase 2.5 for planned resume enhancements
 
 ### Todo Dashboard
 **Status:** Completed | **Route:** `/todos`
@@ -169,6 +175,128 @@ Visual dashboard showing todo completion rates and agent activity.
 - `Frontend/src/components/dashboard/StatsCards.tsx`
 - `Frontend/src/components/dashboard/TodosByAgent.tsx`
 - `Frontend/src/components/dashboard/RecentActivity.tsx`
+
+---
+
+## Phase 2.5: Resume Enhancements (Medium-High Complexity)
+
+### 2.5.1 PDF/DOCX Resume Generation
+**Complexity:** High | **Impact:** High
+
+Generate properly formatted resume documents instead of text-based output.
+
+**Implementation:**
+- Integrate document generation library (WeasyPrint for PDF, python-docx for DOCX)
+- Create resume templates with professional styling
+- Support multiple output formats (PDF, DOCX, plain text)
+- Store generated files in Google Drive via existing MCP integration
+
+**Backend Enhancement Needed:**
+- Add document generation service
+- Modify `ResumeAgent._tool_generate_resume()` to produce formatted documents
+- Add format selection to `ResumeGenerateRequest` model
+
+**Files to Create/Modify:**
+- `Backend/src/services/resume/document_generator.py` (new)
+- `Backend/src/agents/resume_agent.py` (modify generation logic)
+- `Backend/requirements.txt` (add weasyprint, python-docx)
+
+---
+
+### 2.5.2 Resume Template Selection
+**Complexity:** Medium | **Impact:** Medium
+
+Allow users to choose from multiple professionally designed resume templates.
+
+**Implementation:**
+- Create 3-5 resume templates (Modern, Classic, Minimal, Technical, Creative)
+- Template preview thumbnails in frontend
+- Template selection in generation flow
+- Store template preference in user profile
+
+**Files to Create:**
+- `Backend/src/services/resume/templates/` (new directory with template files)
+- `Frontend/src/components/resume/TemplateSelector.tsx` (new)
+- `Frontend/src/app/resume/templates/page.tsx` (new)
+
+---
+
+### 2.5.3 Real-time Resume Preview
+**Complexity:** Medium | **Impact:** Medium
+
+Show live preview of resume as user edits profile, skills, and experience.
+
+**Implementation:**
+- Split-pane editor with live preview
+- Debounced updates as content changes
+- Template switching in preview mode
+- Export directly from preview
+
+**Files to Create:**
+- `Frontend/src/components/resume/ResumePreview.tsx` (new)
+- `Frontend/src/components/resume/ResumeEditor.tsx` (new)
+- `Frontend/src/app/resume/builder/page.tsx` (new)
+
+---
+
+### 2.5.4 ATS Score Analysis
+**Complexity:** High | **Impact:** High
+
+Analyze resume compatibility with Applicant Tracking Systems.
+
+**Implementation:**
+- Parse job listing for keywords and requirements
+- Score resume content against job requirements
+- Provide actionable improvement suggestions
+- Highlight missing keywords and skills
+
+**Backend Enhancement Needed:**
+- Add ATS scoring algorithm to ResumeAgent
+- Create keyword extraction from job descriptions
+- Generate improvement recommendations
+
+**Files to Create/Modify:**
+- `Backend/src/services/resume/ats_analyzer.py` (new)
+- `Backend/src/agents/resume_agent.py` (add ATS tools)
+- `Frontend/src/components/resume/ATSScoreCard.tsx` (new)
+
+---
+
+### 2.5.5 Bulk Resume Generation
+**Complexity:** Medium | **Impact:** Medium
+
+Generate tailored resumes for multiple job listings at once.
+
+**Implementation:**
+- Multi-select job listings for batch generation
+- Queue-based processing for multiple resumes
+- Progress indicator for batch operations
+- Bulk download as ZIP archive
+
+**Files to Create:**
+- `Backend/src/services/resume/batch_generator.py` (new)
+- `Frontend/src/components/resume/BulkGenerateModal.tsx` (new)
+
+---
+
+### 2.5.6 Resume Feedback & Improvement Suggestions
+**Complexity:** Medium | **Impact:** Medium
+
+AI-powered suggestions to improve resume content and structure.
+
+**Implementation:**
+- Analyze resume for common issues (gaps, weak action verbs, missing metrics)
+- Suggest improvements for work experience bullet points
+- Recommend skills to add based on target roles
+- Grammar and clarity checks
+
+**Backend Enhancement Needed:**
+- Add feedback generation tool to ResumeAgent
+- Integrate with Claude for content analysis
+
+**Files to Create/Modify:**
+- `Backend/src/agents/resume_agent.py` (add feedback tools)
+- `Frontend/src/components/resume/FeedbackPanel.tsx` (new)
 
 ---
 
@@ -326,8 +454,14 @@ Power user keyboard shortcuts.
 | Dark Mode | Low | Medium | **P1** |
 | Message Actions | Low | Medium | **P1** |
 | Todo List Page | Medium | High | **P1** |
+| PDF/DOCX Resume Generation | High | High | **P1** |
+| Resume Template Selection | Medium | Medium | **P2** |
 | Conversation Sidebar | Medium | High | **P2** |
 | Agent Execution Viewer | High | High | **P2** |
+| ATS Score Analysis | High | High | **P2** |
+| Real-time Resume Preview | Medium | Medium | **P3** |
+| Resume Feedback Suggestions | Medium | Medium | **P3** |
+| Bulk Resume Generation | Medium | Medium | **P3** |
 | Streaming Responses | High | High | **P3** |
 | File Upload | High | Medium | **P3** |
 
